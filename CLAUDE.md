@@ -10,6 +10,7 @@ Full MVP spec: `docs/spec.md` — read it before starting a new milestone.
 Brand/domain is not final: use `APP_BASE_URL` from env, never hardcode a domain.
 
 ## Stack (open source, self-hosted on a cloud VM)
+
 - Next.js (App Router) + TypeScript (strict)
 - PostgreSQL + Drizzle ORM (migrations in `db/migrations`)
 - Better Auth (email/password, passkeys, 2FA)
@@ -21,14 +22,18 @@ Brand/domain is not final: use `APP_BASE_URL` from env, never hardcode a domain.
 - Tests: Vitest (unit/integration), Playwright (end-to-end)
 
 ## Commands
-- Start services: `docker compose up -d`
+
+- Start services: `docker compose up -d` (Postgres, Mailpit inbox at http://localhost:8025, S3, OpenBao)
 - Dev server: `npm run dev`
-- Tests: `npm test` and `npm run test:e2e` — must pass before every commit
-- Lint/typecheck: `npm run lint && npm run typecheck`
-- DB: `npm run db:generate` then `npm run db:migrate`
-(Create these scripts in milestone 1 if they don't exist yet.)
+- Tests: `npm test` (unit + DB integration, needs `TEST_DATABASE_URL`) and `npm run test:e2e`
+  (builds and serves production on :3100) — both must pass before every commit
+- Lint/types/format: `npm run lint && npm run typecheck && npm run format:check`
+- DB: `npm run db:generate -- --name <change>` then `npm run db:migrate`
+- Auth tables: `npm run auth:schema` (never hand-edit `src/lib/db/schema/auth.ts`)
+- Make an admin: `npm run admin:grant -- email@example.com`
 
 ## Architecture rules
+
 - Profile types live in `src/profile-types/{type}/` with:
   `schema.ts` (Zod), `Editor.tsx`, `PublicPage.tsx`, optional `actions.ts`.
   Register types only in `src/profile-types/registry.ts`.
@@ -39,8 +44,12 @@ Brand/domain is not final: use `APP_BASE_URL` from env, never hardcode a domain.
   - NFC tap: `/t/{tagId}?…` with NTAG 424 SUN params (verified).
   - QR/short code: `/q/{publicCode}` — read-only public page, never claims or edits.
 - Server-side logic in `src/server/`; route handlers stay thin.
+- Next.js 16: middleware is `src/proxy.ts`; read `node_modules/next/dist/docs/` before using new APIs (see AGENTS.md).
+- Use `getDb()` / `getAuth()` (created on first request). Never read env at module top level: builds run without secrets.
+- Protected pages call `requireUser()` / `requireAdmin()`; the proxy redirect is only a convenience.
 
 ## Security rules (never break these)
+
 - Validate ALL input server-side with Zod. Never trust the client.
 - NTAG 424: verify CMAC with the tag's derived key; reject if counter <= `tags.last_counter`;
   update the counter atomically.
@@ -50,12 +59,13 @@ Brand/domain is not final: use `APP_BASE_URL` from env, never hardcode a domain.
 - `lost_id` must never store ID numbers, card numbers, or addresses.
 - Location sharing requires explicit browser permission from the finder; never silent.
 - Rate-limit login, claim, and finder-contact endpoints; ALTCHA on finder forms.
-- Sanitize any user HTML/markdown (DOMPurify); strict CSP and security headers.
+- Sanitize any user HTML/markdown (DOMPurify). CSP is nonce-based: no inline `style=` attributes or inline scripts.
 - Never log secrets, tokens, claim codes, or personal data. Secrets come from env/OpenBao.
 - Random, non-sequential IDs everywhere public (tag IDs, public codes).
 - Follow OWASP Top 10. Ask before weakening any of these rules.
 
 ## Conventions
+
 - Write tests with every feature; cover security rules with explicit tests.
 - Small, focused commits with a clear "why".
 - Ask before adding a new dependency; prefer well-maintained open-source packages.
