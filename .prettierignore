@@ -1,0 +1,10 @@
+node_modules
+.next
+db/migrations/meta
+src/lib/db/schema/auth.ts
+package-lock.json
+test-results
+playwright-report
+.mail-outbox
+.mail-outbox-e2e
+next-env.d.ts

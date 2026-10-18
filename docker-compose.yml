@@ -1,0 +1,50 @@
+# Local development services. Production uses docker-compose.prod.yml (milestone 6).
+# Every port binds to 127.0.0.1 so nothing is exposed to your network.
+name: tagplatform
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tagplatform
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      POSTGRES_DB: tagplatform
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tagplatform"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # S3-compatible object storage for photos and logos (used from milestone 4).
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    command: "server -s3 -dir=/data -s3.config=/etc/seaweedfs/s3.json"
+    ports:
+      - "127.0.0.1:8333:8333"
+    volumes:
+      - s3data:/data
+      - ./docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+
+  # Catches every outgoing email. Inbox UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+  # Secrets vault for NTAG 424 keys (used from milestone 3). Dev mode: in-memory, NOT for production.
+  openbao:
+    image: openbao/openbao:latest
+    command: "server -dev -dev-root-token-id=dev-root-token -dev-listen-address=0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "127.0.0.1:8200:8200"
+
+volumes:
+  pgdata:
+  s3data:
