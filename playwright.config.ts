@@ -30,6 +30,8 @@ export default defineConfig({
       AUTH_RATE_LIMIT: "off",
       // Stands in for OpenBao so tests can simulate genuine NTAG 424 taps (tests/e2e/ntag424-sim.ts).
       NTAG424_TEST_MASTER_KEY: "000102030405060708090A0B0C0D0E0F",
+      // Photos go to a local folder instead of S3 (development and tests only).
+      STORAGE_DIR: "./.storage-e2e",
     },
   },
 });

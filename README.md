@@ -17,7 +17,9 @@ owners can turn tags off and on; admins can disable tags and reissue lost claim 
 **Milestone 3 (profiles) is done:** genuine NFC taps are verified (NTAG 424 SUN: signature, chip UID, forward-only
 counter); owners edit their profile from the dashboard (business card, lost pet, lost device, lost wallet/ID) and
 turn lost mode on/off; `/t` and `/q` show the real public pages; business cards have "Save contact" (vCard 3.0).
-Photo uploads and the finder relay come in milestone 4.
+Milestone 4 adds the finder relay (message + optional location, bot check), scan alerts and history, and photo
+uploads: owners upload a photo (and a logo for business cards); images are re-encoded to WebP, which removes all
+metadata including GPS location, and are served from `/media/…` only while their tag is active.
 
 ## Run it locally
 
