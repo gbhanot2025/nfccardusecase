@@ -7,7 +7,8 @@ import { ProfileEditor } from "@/profile-types/modules";
 import { FORM_FACTOR_LABEL, PROFILE_TYPE_INFO } from "@/profile-types/registry";
 import { getOwnedProfile } from "@/server/profiles";
 import { listMessagesForProfile } from "@/server/relay";
-import { saveProfileAction, setLostModeAction } from "./actions";
+import { listScansForProfile } from "@/server/scans";
+import { saveProfileAction, setLostModeAction, setScanAlertsAction } from "./actions";
 
 export const metadata: Metadata = { title: "Edit profile" };
 
@@ -19,7 +20,10 @@ export default async function EditProfilePage({ params }: PageProps<"/dashboard/
   if (!owned) notFound();
   const { tag, profile } = owned;
   const info = PROFILE_TYPE_INFO[profile.type];
-  const finderMessages = info.lostItem ? await listMessagesForProfile(db, profile.id) : [];
+  const [finderMessages, scans] = await Promise.all([
+    info.lostItem ? listMessagesForProfile(db, profile.id) : [],
+    listScansForProfile(db, profile.id),
+  ]);
 
   return (
     <main className="wide">
@@ -93,6 +97,44 @@ export default async function EditProfilePage({ params }: PageProps<"/dashboard/
           )}
         </div>
       )}
+
+      <div className="card">
+        <h2>Recent scans</h2>
+        {info.lostItem && (
+          <form action={setScanAlertsAction.bind(null, tag.id)} className="row">
+            <input type="hidden" name="scanAlerts" value={profile.scanAlerts ? "off" : "on"} />
+            <span className="muted">
+              Scan alerts by email are <strong>{profile.scanAlerts ? "on" : "off"}</strong> (at most one every 15
+              minutes).
+            </span>
+            <button type="submit" className="secondary small">
+              {profile.scanAlerts ? "Turn scan alerts off" : "Turn scan alerts on"}
+            </button>
+          </form>
+        )}
+        {scans.length === 0 ? (
+          <p className="muted">No scans yet. Your own visits aren&apos;t counted.</p>
+        ) : (
+          <table aria-label="Recent scans">
+            <thead>
+              <tr>
+                <th>When (UTC)</th>
+                <th>How</th>
+                <th>Device</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scans.map((s) => (
+                <tr key={s.id}>
+                  <td>{s.createdAt.toISOString().slice(0, 16).replace("T", " ")}</td>
+                  <td>{s.source === "nfc" ? "NFC tap" : "QR code"}</td>
+                  <td>{s.deviceInfo ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       <div className="card">
         <h2>Profile</h2>
