@@ -43,6 +43,7 @@ Brand/domain is not final: use `APP_BASE_URL` from env, never hardcode a domain.
 - Two link kinds:
   - NFC tap: `/t/{tagId}?…` with NTAG 424 SUN params (verified).
   - QR/short code: `/q/{publicCode}` — read-only public page, never claims or edits.
+  - No-NFC activation: `/activate/{publicCode}` — login + claim code required, same limits as a tap.
 - Server-side logic in `src/server/`; route handlers stay thin.
 - Next.js 16: middleware is `src/proxy.ts`; read `node_modules/next/dist/docs/` before using new APIs (see AGENTS.md).
 - Use `getDb()` / `getAuth()` (created on first request). Never read env at module top level: builds run without secrets.

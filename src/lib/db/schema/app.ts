@@ -19,6 +19,26 @@ export const profileTypeEnum = pgEnum("profile_type", ["business_card", "lost_pe
 export const tagStatusEnum = pgEnum("tag_status", ["unclaimed", "active", "disabled"]);
 export const formFactorEnum = pgEnum("form_factor", ["card", "collar", "sticker", "keychain", "wristband"]);
 export const scanSourceEnum = pgEnum("scan_source", ["nfc", "qr"]);
+export const tagDisabledReasonEnum = pgEnum("tag_disabled_reason", ["owner", "admin", "replaced"]);
+
+/** A production run of tags generated together by an admin (one form factor, one set of allowed types). */
+export const tagBatches = pgTable(
+  "tag_batches",
+  {
+    id: text("id").primaryKey(),
+    label: text("label").notNull(),
+    formFactor: formFactorEnum("form_factor").notNull(),
+    allowedTypes: profileTypeEnum("allowed_types").array().notNull(),
+    quantity: integer("quantity").notNull(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("tag_batches_time_idx").on(t.createdAt),
+    check("tag_batches_quantity_range", sql`${t.quantity} BETWEEN 1 AND 500`),
+    check("tag_batches_label_length", sql`char_length(${t.label}) BETWEEN 1 AND 100`),
+  ],
+);
 
 /** A physical NFC/QR item we ship. Codes are random; the claim code is stored only as a hash. */
 export const tags = pgTable(
@@ -31,11 +51,13 @@ export const tags = pgTable(
     allowedTypes: profileTypeEnum("allowed_types").array().notNull(),
     status: tagStatusEnum("status").notNull().default("unclaimed"),
     ownerId: text("owner_id").references(() => user.id, { onDelete: "set null" }),
-    batchId: text("batch_id"),
+    batchId: text("batch_id").references(() => tagBatches.id, { onDelete: "restrict" }),
     keyRef: text("key_ref"),
     lastCounter: integer("last_counter").notNull().default(0),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    // Who disabled it decides who may re-enable it: owners can undo their own, never an admin's.
+    disabledReason: tagDisabledReasonEnum("disabled_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -44,6 +66,7 @@ export const tags = pgTable(
     check("tags_active_has_owner", sql`${t.status} <> 'active' OR ${t.ownerId} IS NOT NULL`),
     check("tags_allowed_types_not_empty", sql`cardinality(${t.allowedTypes}) > 0`),
     check("tags_counter_non_negative", sql`${t.lastCounter} >= 0`),
+    check("tags_disabled_has_reason", sql`(${t.status} = 'disabled') = (${t.disabledReason} IS NOT NULL)`),
   ],
 );
 
@@ -70,7 +93,10 @@ export const profiles = pgTable(
   (t) => [check("profiles_lost_mode_only_lost_types", sql`${t.lostMode} = false OR ${t.type} <> 'business_card'`)],
 );
 
-/** One row per tap or scan. Never stores a full IP address. */
+/**
+ * One row per tap or scan. Never stores a full IP address.
+ * Also linked to the profile, so the owner keeps the history when the profile moves to a replacement tag.
+ */
 export const scanEvents = pgTable(
   "scan_events",
   {
@@ -78,6 +104,7 @@ export const scanEvents = pgTable(
     tagId: text("tag_id")
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "set null" }),
     source: scanSourceEnum("source").notNull(),
     deviceInfo: text("device_info"),
     ipPrefix: text("ip_prefix"),
@@ -85,10 +112,13 @@ export const scanEvents = pgTable(
     longitude: doublePrecision("longitude"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("scan_events_tag_time_idx").on(t.tagId, t.createdAt)],
+  (t) => [
+    index("scan_events_tag_time_idx").on(t.tagId, t.createdAt),
+    index("scan_events_profile_time_idx").on(t.profileId, t.createdAt),
+  ],
 );
 
-/** Finder → owner messages sent through the relay. */
+/** Finder → owner messages sent through the relay. Linked to the profile too (see scan_events). */
 export const messages = pgTable(
   "messages",
   {
@@ -96,6 +126,7 @@ export const messages = pgTable(
     tagId: text("tag_id")
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "set null" }),
     body: text("body").notNull(),
     finderContact: text("finder_contact"),
     latitude: doublePrecision("latitude"),
@@ -105,6 +136,7 @@ export const messages = pgTable(
   },
   (t) => [
     index("messages_tag_time_idx").on(t.tagId, t.createdAt),
+    index("messages_profile_time_idx").on(t.profileId, t.createdAt),
     check("messages_body_length", sql`char_length(${t.body}) BETWEEN 1 AND 2000`),
   ],
 );
@@ -122,4 +154,18 @@ export const auditLog = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("audit_log_target_idx").on(t.targetType, t.targetId), index("audit_log_time_idx").on(t.createdAt)],
+);
+
+/**
+ * Fixed-window counters for app rate limits (claim attempts, later finder contact).
+ * Keys never contain secrets: e.g. `claim:tag:<tagId>`, `claim:user:<userId>`, `claim:ip:<ip>`.
+ */
+export const rateLimits = pgTable(
+  "app_rate_limits",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").notNull(),
+    resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("app_rate_limits_reset_idx").on(t.resetAt)],
 );
