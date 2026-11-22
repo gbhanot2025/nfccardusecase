@@ -11,7 +11,8 @@ import { hit } from "./rate-limit";
  * whose SHA-256(salt + number) equals it, and the server checks the signature, expiry and that each
  * challenge is used once. Bots must spend CPU per message; people see nothing.
  */
-export const ALTCHA_MAX_NUMBER = 50_000;
+/** About 1–2 seconds on a phone, solved in the background while the finder types. */
+export const ALTCHA_MAX_NUMBER = 200_000;
 const EXPIRES_SECONDS = 30 * 60;
 
 export type AltchaChallenge = {

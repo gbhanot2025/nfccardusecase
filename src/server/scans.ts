@@ -5,8 +5,17 @@ import { profiles, scanEvents, tags, user } from "@/lib/db/schema";
 import { PROFILE_TYPE_INFO, type ProfileType } from "@/profile-types/registry";
 import { hit } from "./rate-limit";
 
-/** At most one alert email per tag in this window; every scan is still recorded. */
+/** At most one alert email per tag in this window, and at most ALERTS_PER_DAY a day; every scan is recorded. */
 export const SCAN_ALERT_WINDOW_SECONDS = 15 * 60;
+export const ALERTS_PER_DAY = 10;
+
+/** Link previews, crawlers and scanners aren't people scanning a tag: don't record or alert. */
+export function isBot(userAgent: string | null): boolean {
+  if (!userAgent) return true;
+  return /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|discord|slack|curl|wget|python-requests|headless|lighthouse/i.test(
+    userAgent,
+  );
+}
 /** The same visitor reloading a QR page isn't a new scan. */
 const QR_DEDUPE_SECONDS = 10 * 60;
 
@@ -72,6 +81,7 @@ export async function recordScan(
   db: Database,
   opts: { tagId: string; source: "nfc" | "qr"; ip: string | null; userAgent: string | null },
 ): Promise<ScanAlert | null> {
+  if (opts.source === "qr" && isBot(opts.userAgent)) return null;
   const prefix = ipPrefix(opts.ip);
   if (opts.source === "qr") {
     const seen = await hit(db, `scan:qr:${opts.tagId}:${prefix ?? "unknown"}`, {
@@ -104,6 +114,8 @@ export async function recordScan(
   if (!PROFILE_TYPE_INFO[row.type].lostItem || !row.scanAlerts) return null;
   const alert = await hit(db, `scanalert:${opts.tagId}`, { limit: 1, windowSeconds: SCAN_ALERT_WINDOW_SECONDS });
   if (!alert.allowed) return null;
+  const daily = await hit(db, `scanalert:day:${opts.tagId}`, { limit: ALERTS_PER_DAY, windowSeconds: 24 * 60 * 60 });
+  if (!daily.allowed) return null;
   return { to: row.ownerEmail, itemLabel: SHORT_LABEL[row.type], source: opts.source, device, at: scan.createdAt };
 }
 

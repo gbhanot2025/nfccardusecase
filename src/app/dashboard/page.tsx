@@ -71,12 +71,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   <span className="muted">
                     {FORM_FACTOR_LABEL[t.formFactor]} · <span className="mono">{t.publicCode}</span> ·{" "}
                     <span className={`badge ${t.status}`}>
-                      {t.disabledReason === "replaced" ? "Replaced" : STATUS_TEXT[t.status]}
+                      {t.status === "disabled" && !t.profileType ? "Replaced" : STATUS_TEXT[t.status]}
                     </span>
                   </span>
                 </div>
                 <div className="row">
-                  {t.profileType && t.disabledReason !== "replaced" && (
+                  {t.profileType && (
                     <Link className="button small" href={`/dashboard/tags/${t.id}`}>
                       Edit profile
                     </Link>
@@ -97,7 +97,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                       </ConfirmSubmit>
                     </form>
                   )}
-                  {t.status === "disabled" && t.disabledReason === "owner" && (
+                  {t.status === "disabled" && t.disabledReason === "owner" && t.profileType && (
                     <form action={setTagEnabledAction} className="inline">
                       <input type="hidden" name="tagId" value={t.id} />
                       <input type="hidden" name="enable" value="1" />

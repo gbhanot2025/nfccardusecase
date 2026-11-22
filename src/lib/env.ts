@@ -66,6 +66,24 @@ export const envSchema = z
           message: "The file outbox is for development and tests only",
         });
       }
+      // Without OpenBao every tap is silently "unverified"; and its token must not travel over the internet
+      // in clear text (plain http is fine only to an internal service name like "openbao").
+      if (!env.OPENBAO_ADDR || !env.OPENBAO_TOKEN) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["OPENBAO_ADDR"],
+          message: "OPENBAO_ADDR and OPENBAO_TOKEN are required in production",
+        });
+      } else {
+        const vault = new URL(env.OPENBAO_ADDR);
+        if (vault.protocol !== "https:" && vault.hostname.includes(".") && vault.hostname !== "127.0.0.1") {
+          ctx.addIssue({
+            code: "custom",
+            path: ["OPENBAO_ADDR"],
+            message: "OPENBAO_ADDR must use https unless it's an internal service name",
+          });
+        }
+      }
       if (env.NTAG424_TEST_MASTER_KEY) {
         ctx.addIssue({
           code: "custom",

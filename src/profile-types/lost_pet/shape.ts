@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { formString, optionalField, optionalStorageKey, singleLineText, validateWith } from "../shared/fields";
+import { formString, optionalField, optionalStorageKey, validateWith } from "../shared/fields";
 import { REWARD_MAX, lostMultiLineText, lostText } from "../shared/lost";
 import { lightPhoneNumber } from "../shared/phone-input";
 
@@ -47,7 +47,7 @@ export function lostPetShape<P extends z.ZodType<string>>(phone: P) {
     petName: lostText(LOST_PET_LIMITS.petName),
     breed: lostText(LOST_PET_LIMITS.breed),
     medicalNotes: lostMultiLineText(LOST_PET_LIMITS.medicalNotes),
-    vetName: singleLineText(LOST_PET_LIMITS.vetName),
+    vetName: lostText(LOST_PET_LIMITS.vetName),
     vetPhone: optionalField(phone),
     reward: lostText(LOST_PET_LIMITS.reward),
     microchipped: z.boolean().default(false),

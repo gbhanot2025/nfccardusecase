@@ -25,3 +25,14 @@ describe("scan privacy helpers", () => {
     expect(describeDevice(null)).toBeNull();
   });
 });
+
+describe("bot detection for scans", () => {
+  it("skips previews and crawlers, keeps phones", async () => {
+    const { isBot } = await import("@/server/scans");
+    expect(isBot("facebookexternalhit/1.1")).toBe(true);
+    expect(isBot("WhatsApp/2.23")).toBe(true);
+    expect(isBot("Mozilla/5.0 (compatible; Googlebot/2.1)")).toBe(true);
+    expect(isBot(null)).toBe(true);
+    expect(isBot("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1")).toBe(false);
+  });
+});

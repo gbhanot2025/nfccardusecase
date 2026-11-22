@@ -7,10 +7,17 @@ import { PROFILE_TYPE_INFO, type ProfileType } from "@/profile-types/registry";
 import { verifySolution } from "./altcha";
 import { normalizePublicCode } from "./codes";
 import { hit, type RateLimitRule } from "./rate-limit";
+import { ipRateKey } from "./request";
 
+/**
+ * Limits are checked in order: the sender's IP, then the sender's messages to this tag, then a cap on
+ * emails per tag. Over the email cap the message is still saved (the owner sees it in the dashboard), so
+ * nobody can stop real finders from reaching an owner by spamming a tag.
+ */
 export const RELAY_LIMITS = {
   perIp: { limit: 5, windowSeconds: 60 * 60 },
-  perTag: { limit: 20, windowSeconds: 24 * 60 * 60 },
+  perTagPerSender: { limit: 3, windowSeconds: 24 * 60 * 60 },
+  emailsPerTag: { limit: 30, windowSeconds: 24 * 60 * 60 },
 } satisfies Record<string, RateLimitRule>;
 
 const optionalCoordinate = (min: number, max: number) =>
@@ -35,13 +42,14 @@ export const finderMessageInput = z
 export type RelayResult =
   | {
       ok: true;
+      /** Null when the tag's daily email cap is reached: the message is saved but not emailed. */
       email: {
         to: string;
         itemLabel: string;
         message: string;
         finderContact: string | null;
         location: { latitude: number; longitude: number } | null;
-      };
+      } | null;
       messageId: string;
     }
   | { ok: false; error: "invalid" | "not_found" | "bot_check" | "rate_limited"; message?: string };
@@ -60,7 +68,7 @@ const SHORT_LABEL: Record<ProfileType, string> = {
  */
 export async function submitFinderMessage(
   db: Database,
-  opts: { publicCode: string; ip: string | null; raw: Record<string, unknown> },
+  opts: { publicCode: string; ip: string | null; limitByIp?: boolean; raw: Record<string, unknown> },
 ): Promise<RelayResult> {
   const parsed = finderMessageInput.safeParse(opts.raw);
   if (!parsed.success) return { ok: false, error: "invalid", message: parsed.error.issues[0]?.message };
@@ -86,11 +94,14 @@ export async function submitFinderMessage(
 
   if (!(await verifySolution(db, input.altcha))) return { ok: false, error: "bot_check" };
 
-  const limits = [
-    hit(db, `relay:tag:${row.tagId}`, RELAY_LIMITS.perTag),
-    ...(opts.ip ? [hit(db, `relay:ip:${opts.ip}`, RELAY_LIMITS.perIp)] : []),
-  ];
-  if ((await Promise.all(limits)).some((r) => !r.allowed)) return { ok: false, error: "rate_limited" };
+  const sender = ipRateKey(opts.ip ?? "unknown");
+  if ((opts.limitByIp ?? true) && !(await hit(db, `relay:ip:${sender}`, RELAY_LIMITS.perIp)).allowed) {
+    return { ok: false, error: "rate_limited" };
+  }
+  if (!(await hit(db, `relay:tag:${row.tagId}:${sender}`, RELAY_LIMITS.perTagPerSender)).allowed) {
+    return { ok: false, error: "rate_limited" };
+  }
+  const emailAllowed = (await hit(db, `relay:email:${row.tagId}`, RELAY_LIMITS.emailsPerTag)).allowed;
 
   const location =
     input.latitude !== undefined && input.longitude !== undefined
@@ -111,13 +122,15 @@ export async function submitFinderMessage(
   return {
     ok: true,
     messageId: saved.id,
-    email: {
-      to: row.ownerEmail,
-      itemLabel: SHORT_LABEL[row.type],
-      message: input.message,
-      finderContact: input.contact ?? null,
-      location,
-    },
+    email: emailAllowed
+      ? {
+          to: row.ownerEmail,
+          itemLabel: SHORT_LABEL[row.type],
+          message: input.message,
+          finderContact: input.contact ?? null,
+          location,
+        }
+      : null,
   };
 }
 

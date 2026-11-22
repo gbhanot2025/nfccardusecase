@@ -14,6 +14,8 @@ const prod = {
   DATABASE_URL: "postgres://u:p@db:5432/db",
   BETTER_AUTH_SECRET: "y".repeat(48),
   SMTP_URL: "smtp://user:pass@smtp.example.com:587",
+  OPENBAO_ADDR: "http://openbao:8200",
+  OPENBAO_TOKEN: "s.token",
 };
 
 describe("environment validation", () => {
@@ -45,6 +47,13 @@ describe("environment validation", () => {
     expect(() => parseEnv({ ...prod, SMTP_URL: undefined })).toThrow(/SMTP_URL/);
     expect(() => parseEnv({ ...prod, AUTH_RATE_LIMIT: "off" })).toThrow(/Rate limiting/);
     expect(() => parseEnv({ ...prod, MAIL_OUTBOX_DIR: "/tmp/out" })).toThrow(/outbox/);
+  });
+
+  it("requires OpenBao in production, over https unless it's an internal service", () => {
+    expect(() => parseEnv({ ...prod, OPENBAO_TOKEN: undefined })).toThrow(/OPENBAO_ADDR and OPENBAO_TOKEN/);
+    expect(() => parseEnv({ ...prod, OPENBAO_ADDR: "http://vault.example.com:8200" })).toThrow(/https/);
+    expect(() => parseEnv({ ...prod, OPENBAO_ADDR: "https://vault.example.com" })).not.toThrow();
+    expect(() => parseEnv(prod)).not.toThrow();
   });
 
   it("never allows the NTAG 424 test master key in a real deployment", () => {

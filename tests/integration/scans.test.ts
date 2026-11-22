@@ -72,6 +72,19 @@ describe.skipIf(!db)("scans and alerts", () => {
     expect(await scan(pet, "nfc")).not.toBeNull();
   });
 
+  it("sends at most 10 alerts a day per tag and ignores bots", async () => {
+    let sent = 0;
+    for (let i = 0; i < 12; i++) {
+      await pool!.query("DELETE FROM app_rate_limits WHERE key LIKE 'scanalert:%' AND key NOT LIKE 'scanalert:day:%'");
+      if (await scan(pet, "nfc")) sent++;
+    }
+    expect(sent).toBe(10);
+    expect(
+      await recordScan(d, { tagId: pet, source: "qr", ip: "198.51.100.1", userAgent: "WhatsApp/2.23" }),
+    ).toBeNull();
+    expect(await scansOf(pet)).toHaveLength(12);
+  });
+
   it("counts repeated QR visits from the same network once", async () => {
     await scan(pet, "qr");
     await scan(pet, "qr");

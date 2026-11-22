@@ -124,12 +124,50 @@ describe.skipIf(!db)("tag batches and claiming", () => {
     expect(await d.select().from(schema.profiles)).toHaveLength(1);
   });
 
-  it("locks a tag after too many attempts, even with the right code", async () => {
+  it("locks a tag for a user after too many attempts, even with the right code", async () => {
     const { tags } = await newBatch(1);
-    for (let i = 0; i < CLAIM_LIMITS.perTag.limit; i++) {
-      expect((await claim(tags[0].tagId, `${i % 2 ? "alice" : "bob"}`, "AAAAA-AAAAA")).ok).toBe(false);
+    for (let i = 0; i < CLAIM_LIMITS.perTagPerUser.limit; i++) {
+      expect((await claim(tags[0].tagId, "bob", "AAAAA-AAAAA")).ok).toBe(false);
     }
-    expect(await claim(tags[0].tagId, "alice", tags[0].claimCode)).toEqual({ ok: false, error: "rate_limited" });
+    expect(await claim(tags[0].tagId, "bob", tags[0].claimCode)).toEqual({ ok: false, error: "rate_limited" });
+  });
+
+  it("someone guessing can't lock the tag for its real buyer", async () => {
+    const { tags } = await newBatch(1);
+    for (let i = 0; i < 15; i++) await claim(tags[0].tagId, "bob", "AAAAA-AAAAA");
+    expect(await claim(tags[0].tagId, "alice", tags[0].claimCode)).toEqual({ ok: true });
+  });
+
+  it("a profile on a tag an admin disabled can't be moved to another tag", async () => {
+    const { tags } = await newBatch(2);
+    await claim(tags[0].tagId, "alice", tags[0].claimCode);
+    await adminDisableTag(d, "admin", tags[0].tagId);
+    const moved = await claimTag(d, {
+      tagId: tags[1].tagId,
+      userId: "alice",
+      ip: null,
+      limitByIp: false,
+      input: { mode: "move", claimCode: tags[1].claimCode, fromTagId: tags[0].tagId },
+    });
+    expect(moved).toEqual({ ok: false, error: "move_not_allowed" });
+    expect((await findTagById(d, tags[0].tagId))?.tag.disabledReason).toBe("admin");
+  });
+
+  it("moving off a tag the owner turned off keeps it 'turned off by owner'", async () => {
+    const { tags } = await newBatch(2);
+    await claim(tags[0].tagId, "alice", tags[0].claimCode);
+    await disableOwnTag(d, "alice", tags[0].tagId);
+    const moved = await claimTag(d, {
+      tagId: tags[1].tagId,
+      userId: "alice",
+      ip: null,
+      limitByIp: false,
+      input: { mode: "move", claimCode: tags[1].claimCode, fromTagId: tags[0].tagId },
+    });
+    expect(moved).toEqual({ ok: true });
+    expect((await findTagById(d, tags[0].tagId))?.tag.disabledReason).toBe("owner");
+    // With its profile gone, it can't be turned back on.
+    expect(await enableOwnTag(d, "alice", tags[0].tagId)).toBe(false);
   });
 
   it("rate-limit windows count hits and reset", async () => {
