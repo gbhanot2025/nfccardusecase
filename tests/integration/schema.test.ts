@@ -97,8 +97,20 @@ describe.skipIf(!db)("database rules", () => {
     );
   });
 
+  it("a disabled tag records why, and only a disabled tag has a reason", async () => {
+    expect(
+      await constraintOf(d.update(schema.tags).set({ status: "disabled" }).where(eq(schema.tags.id, "tag_1"))),
+    ).toBe("tags_disabled_has_reason");
+    expect(
+      await constraintOf(d.update(schema.tags).set({ disabledReason: "admin" }).where(eq(schema.tags.id, "tag_1"))),
+    ).toBe("tags_disabled_has_reason");
+  });
+
   it("deleting a user frees their tags instead of deleting them", async () => {
-    await d.update(schema.tags).set({ status: "disabled", ownerId: "u1" }).where(eq(schema.tags.id, "tag_1"));
+    await d
+      .update(schema.tags)
+      .set({ status: "disabled", disabledReason: "owner", ownerId: "u1" })
+      .where(eq(schema.tags.id, "tag_1"));
     await d.delete(schema.user).where(eq(schema.user.id, "u1"));
     const [tag] = await d.select().from(schema.tags).where(eq(schema.tags.id, "tag_1"));
     expect(tag.ownerId).toBeNull();

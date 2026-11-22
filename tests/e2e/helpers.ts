@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { expect, type Page } from "@playwright/test";
 
 const OUTBOX = ".mail-outbox-e2e";
 
@@ -39,4 +40,41 @@ export function totp(base32Secret: string, now = Date.now()): string {
 
 export function uniqueEmail(tag: string): string {
   return `e2e-${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
+}
+
+export const PASSWORD = "correct horse battery staple";
+
+/** Fail the test if the page reports any Content-Security-Policy violation. */
+export function watchCsp(page: Page): string[] {
+  const violations: string[] = [];
+  page.on("console", (msg) => {
+    if (/Content Security Policy|Refused to (load|execute|apply)/i.test(msg.text())) violations.push(msg.text());
+  });
+  return violations;
+}
+
+/** Sign up through the UI and open the verification link; lands on `expectUrl` (dashboard by default). */
+export async function signUpAndVerify(page: Page, email: string, opts: { from?: string; expectUrl?: RegExp } = {}) {
+  if (!opts.from) await page.goto("/signup");
+  await page.getByLabel("Full name").fill("E2E Tester");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel(/^Password/).fill(PASSWORD);
+  await page.getByLabel("Confirm password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("status")).toContainText("Check your inbox");
+
+  await page.goto(await latestLinkTo(email, /verify/i));
+  await expect(page).toHaveURL(opts.expectUrl ?? /\/dashboard$/);
+}
+
+/** Turn on authenticator-app 2FA from the security page; returns the TOTP secret. */
+export async function enableTotp(page: Page): Promise<string> {
+  await page.goto("/dashboard/security");
+  await page.getByLabel("Confirm your password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Set up two-step verification" }).click();
+  const secret = (await page.locator("code").innerText()).trim();
+  await page.getByLabel("6-digit code").fill(totp(secret));
+  await page.getByRole("button", { name: "Confirm and turn on" }).click();
+  await expect(page.getByText("Save these backup codes")).toBeVisible();
+  return secret;
 }
