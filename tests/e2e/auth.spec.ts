@@ -1,30 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
-import { latestLinkTo, totp, uniqueEmail } from "./helpers";
-
-const PASSWORD = "correct horse battery staple";
-
-/** Fail the test if the page reports any Content-Security-Policy violation. */
-function watchCsp(page: Page): string[] {
-  const violations: string[] = [];
-  page.on("console", (msg) => {
-    if (/Content Security Policy|Refused to (load|execute|apply)/i.test(msg.text())) violations.push(msg.text());
-  });
-  return violations;
-}
-
-async function signUpAndVerify(page: Page, email: string) {
-  await page.goto("/signup");
-  await page.getByLabel("Full name").fill("E2E Tester");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel(/^Password/).fill(PASSWORD);
-  await page.getByLabel("Confirm password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page.getByRole("status")).toContainText("Check your inbox");
-
-  await page.goto(await latestLinkTo(email, /verify/i));
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { name: "Your tags" })).toBeVisible();
-}
+import { expect, test } from "@playwright/test";
+import { latestLinkTo, PASSWORD, signUpAndVerify, totp, uniqueEmail, watchCsp } from "./helpers";
 
 test("sign up, verify email, log out and log back in", async ({ page }) => {
   const csp = watchCsp(page);
