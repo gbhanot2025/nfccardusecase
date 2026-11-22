@@ -1,19 +1,34 @@
 import "server-only";
 import { verify } from "@node-rs/argon2";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "@/lib/db";
 import { auditLog, profiles, tags } from "@/lib/db/schema";
 import { PROFILE_TYPES, type ProfileType } from "@/profile-types/registry";
 import { normalizeClaimCode, normalizePublicCode, TAG_ID_PATTERN } from "./codes";
 import { hit, type RateLimitRule } from "./rate-limit";
+import { ipRateKey } from "./request";
 
-/** Claim attempts are counted before the code is checked, so parallel guessing can't slip through. */
+/**
+ * Claim attempts are counted before the code is checked, so parallel guessing can't slip through.
+ * The caller's own limits (user, IP) are checked first and the per-tag limit is per user, so someone
+ * who has seen a printed code can't lock the tag for its real buyer. The all-users cap is a backstop.
+ */
 export const CLAIM_LIMITS = {
-  perTag: { limit: 10, windowSeconds: 60 * 60 },
+  perTagPerUser: { limit: 10, windowSeconds: 60 * 60 },
+  perTagAllUsers: { limit: 50, windowSeconds: 60 * 60 },
   perUser: { limit: 20, windowSeconds: 60 * 60 },
   perIp: { limit: 30, windowSeconds: 15 * 60 },
 } satisfies Record<string, RateLimitRule>;
+
+/** The caller's own limits: user, then IP (IPv6 by /64). */
+async function callerWithinLimits(db: Database, userId: string, ip: string | null, limitByIp: boolean) {
+  if (!(await hit(db, `claim:user:${userId}`, CLAIM_LIMITS.perUser)).allowed) return false;
+  if (limitByIp && !(await hit(db, `claim:ip:${ipRateKey(ip ?? "unknown")}`, CLAIM_LIMITS.perIp)).allowed) {
+    return false;
+  }
+  return true;
+}
 
 export function isTagId(value: string): boolean {
   return TAG_ID_PATTERN.test(value);
@@ -68,12 +83,13 @@ export async function claimTag(
   const { tagId, userId, input } = opts;
   if (!isTagId(tagId)) return { ok: false, error: "not_claimable" };
 
-  const checks = [
-    hit(db, `claim:tag:${tagId}`, CLAIM_LIMITS.perTag),
-    hit(db, `claim:user:${userId}`, CLAIM_LIMITS.perUser),
-    ...(opts.limitByIp && opts.ip ? [hit(db, `claim:ip:${opts.ip}`, CLAIM_LIMITS.perIp)] : []),
-  ];
-  if ((await Promise.all(checks)).some((r) => !r.allowed)) return { ok: false, error: "rate_limited" };
+  if (!(await callerWithinLimits(db, userId, opts.ip, opts.limitByIp))) return { ok: false, error: "rate_limited" };
+  if (!(await hit(db, `claim:tag:${tagId}:user:${userId}`, CLAIM_LIMITS.perTagPerUser)).allowed) {
+    return { ok: false, error: "rate_limited" };
+  }
+  if (!(await hit(db, `claim:tag:${tagId}`, CLAIM_LIMITS.perTagAllUsers)).allowed) {
+    return { ok: false, error: "rate_limited" };
+  }
 
   const [tag] = await db.select().from(tags).where(eq(tags.id, tagId));
   if (!tag || tag.status !== "unclaimed") return { ok: false, error: "not_claimable" };
@@ -111,7 +127,12 @@ export async function claimTag(
         .from(tags)
         .innerJoin(profiles, eq(profiles.tagId, tags.id))
         .where(
-          and(eq(tags.id, input.fromTagId), eq(tags.ownerId, userId), inArray(tags.status, ["active", "disabled"])),
+          and(
+            eq(tags.id, input.fromTagId),
+            eq(tags.ownerId, userId),
+            // A profile on a tag an admin disabled stays put: moving it would undo the admin's decision.
+            or(eq(tags.status, "active"), and(eq(tags.status, "disabled"), ne(tags.disabledReason, "admin"))),
+          ),
         )
         .for("update");
       if (!old || old.tagId === tagId || !tag.allowedTypes.includes(old.type)) {
@@ -120,7 +141,12 @@ export async function claimTag(
       await tx.update(profiles).set({ tagId }).where(eq(profiles.id, old.profileId));
       await tx
         .update(tags)
-        .set({ status: "disabled", disabledReason: "replaced", disabledAt: new Date() })
+        .set({
+          status: "disabled",
+          // Keep an existing reason (e.g. the owner turned it off as lost); otherwise it was replaced.
+          disabledReason: sql`coalesce(${tags.disabledReason}, 'replaced'::tag_disabled_reason)`,
+          disabledAt: sql`coalesce(${tags.disabledAt}, now())`,
+        })
         .where(eq(tags.id, old.tagId));
       await tx.insert(auditLog).values({
         actorUserId: userId,
@@ -149,11 +175,9 @@ export async function claimByPublicCode(
   const code = normalizePublicCode(opts.publicCode);
   const [tag] = code ? await db.select({ id: tags.id }).from(tags).where(eq(tags.publicCode, code)) : [];
   if (!tag) {
-    const checks = [
-      hit(db, `claim:user:${opts.userId}`, CLAIM_LIMITS.perUser),
-      ...(opts.limitByIp && opts.ip ? [hit(db, `claim:ip:${opts.ip}`, CLAIM_LIMITS.perIp)] : []),
-    ];
-    if ((await Promise.all(checks)).some((r) => !r.allowed)) return { ok: false, error: "rate_limited" };
+    if (!(await callerWithinLimits(db, opts.userId, opts.ip, opts.limitByIp))) {
+      return { ok: false, error: "rate_limited" };
+    }
     return { ok: false, error: "invalid_code" };
   }
   return claimTag(db, {
