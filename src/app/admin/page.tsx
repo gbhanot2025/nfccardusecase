@@ -55,6 +55,13 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                 <td className="mono">{found.tag.publicCode}</td>
               </tr>
               <tr>
+                <th>Chip UID</th>
+                <td className="mono">
+                  {found.tag.uid ?? "Not encoded"}
+                  {found.tag.uid && ` · last tap counter ${found.tag.lastCounter}`}
+                </td>
+              </tr>
+              <tr>
                 <th>Status</th>
                 <td>
                   <StatusBadge status={found.tag.status} reason={found.tag.disabledReason} />
