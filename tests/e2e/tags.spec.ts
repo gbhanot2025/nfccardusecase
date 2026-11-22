@@ -50,8 +50,12 @@ async function createBatch(page: Page, quantity: number): Promise<{ batchId: str
   return { batchId, labels };
 }
 
+/** A separate person on a phone (a real user agent: headless browsers count as bots for scans). */
 async function newVisitor(browser: Browser): Promise<Page> {
-  const context = await browser.newContext();
+  const context = await browser.newContext({
+    userAgent:
+      "Mozilla/5.0 (Linux; Android 15; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36",
+  });
   return context.newPage();
 }
 
