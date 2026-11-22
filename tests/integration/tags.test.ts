@@ -11,6 +11,7 @@ import {
   adminDisableTag,
   adminEnableTag,
   CLAIM_LIMITS,
+  claimByPublicCode,
   claimTag,
   disableOwnTag,
   enableOwnTag,
@@ -215,6 +216,35 @@ describe.skipIf(!db)("tag batches and claiming", () => {
     const detail = await getBatch(d, batchId);
     expect(detail?.unclaimed).toBe(0);
     expect(await reissueClaimCodes(d, "b_doesnotexist", "admin")).toBeNull();
+  });
+
+  it("claims with the printed public code + claim code (no NFC)", async () => {
+    const { tags } = await newBatch(1);
+    const byCode = (publicCode: string, claimCode: string) =>
+      claimByPublicCode(d, {
+        publicCode,
+        userId: "alice",
+        ip: null,
+        limitByIp: false,
+        input: { mode: "new", claimCode, type: "business_card" },
+      });
+    expect(await byCode(tags[0].publicCode, "AAAAA-AAAAA")).toEqual({ ok: false, error: "invalid_code" });
+    expect(await byCode(tags[0].publicCode.toLowerCase(), tags[0].claimCode)).toEqual({ ok: true });
+    expect((await findTagById(d, tags[0].tagId))?.tag.ownerId).toBe("alice");
+  });
+
+  it("unknown public codes look like a wrong claim code and still count against the user's limit", async () => {
+    const attempt = () =>
+      claimByPublicCode(d, {
+        publicCode: "ZZZZZZZZZZ",
+        userId: "bob",
+        ip: null,
+        limitByIp: false,
+        input: { mode: "new", claimCode: "AAAAA-AAAAA", type: "lost_pet" },
+      });
+    for (let i = 0; i < CLAIM_LIMITS.perUser.limit; i++)
+      expect(await attempt()).toEqual({ ok: false, error: "invalid_code" });
+    expect(await attempt()).toEqual({ ok: false, error: "rate_limited" });
   });
 
   it("rejects malformed tag IDs before touching the database", async () => {

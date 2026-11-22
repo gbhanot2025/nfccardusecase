@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TagStatusView } from "@/components/TagStatusView";
 import { getSession } from "@/lib/auth";
@@ -21,6 +22,9 @@ export default async function QrPage({ params }: PageProps<"/q/[publicCode]">) {
         <p className="muted">
           To activate it, hold the tag against the back of an NFC-enabled phone and follow the steps. You&apos;ll need
           the claim code from the packaging.
+        </p>
+        <p>
+          No NFC on your phone? <Link href={`/activate/${tag.publicCode}`}>Activate with the printed codes</Link>.
         </p>
       </main>
     );

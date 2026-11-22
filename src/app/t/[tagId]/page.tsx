@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ClaimForm } from "@/components/ClaimForm";
 import { TagStatusView } from "@/components/TagStatusView";
 import { getSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { findTagById, listOwnedTags, movableProfiles } from "@/server/tags";
-import { ClaimForm } from "./ClaimForm";
+import { claimAction } from "./actions";
 
 export const metadata: Metadata = { title: "Tag" };
 
@@ -57,7 +58,11 @@ export default async function TagPage({ params }: PageProps<"/t/[tagId]">) {
       <h1>Activate your tag</h1>
       <p className="muted">Signed in as {session.user.email}. Enter the claim code printed on the packaging insert.</p>
       <div className="card">
-        <ClaimForm tagId={tag.id} allowedTypes={tag.allowedTypes} movable={movableProfiles(owned, tag.allowedTypes)} />
+        <ClaimForm
+          action={claimAction.bind(null, tag.id)}
+          allowedTypes={tag.allowedTypes}
+          movable={movableProfiles(owned, tag.allowedTypes)}
+        />
       </div>
     </main>
   );

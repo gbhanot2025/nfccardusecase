@@ -49,6 +49,7 @@ npm run admin:grant -- you@example.com
 | ----------------- | -------------------------------------------- | --------------------------------------------- |
 | `/t/{tagId}`      | NFC tap (written to the chip by the encoder) | Activation if unclaimed, else the public page |
 | `/q/{publicCode}` | Printed QR code                              | Public page only: never claims or edits       |
+| `/activate`       | Customers whose phone has no NFC             | Activate with the printed code + claim code   |
 | `/admin`          | Admins (with 2FA)                            | Batches, tag search, disable/enable           |
 
 ## Tests

@@ -3,20 +3,22 @@
 import { useActionState } from "react";
 import { FormError } from "@/components/FormError";
 import { PROFILE_TYPE_INFO, type ProfileType } from "@/profile-types/registry";
-import { claimAction, type ClaimState } from "./actions";
+
+export type ClaimState = { error?: string };
 
 export type MovableProfile = { tagId: string; publicCode: string; type: ProfileType };
 
+/** Claim code + profile choice. `action` is a server action already bound to the tag being claimed. */
 export function ClaimForm({
-  tagId,
+  action,
   allowedTypes,
   movable,
 }: {
-  tagId: string;
+  action: (prev: ClaimState, formData: FormData) => Promise<ClaimState>;
   allowedTypes: ProfileType[];
   movable: MovableProfile[];
 }) {
-  const [state, formAction, pending] = useActionState<ClaimState, FormData>(claimAction.bind(null, tagId), {});
+  const [state, formAction, pending] = useActionState<ClaimState, FormData>(action, {});
   const single = allowedTypes.length === 1 && movable.length === 0;
 
   return (

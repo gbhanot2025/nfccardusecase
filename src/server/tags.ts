@@ -137,6 +137,34 @@ export async function claimTag(
   return { ok: true };
 }
 
+/**
+ * Claim using the code printed under the QR code instead of an NFC tap (phones without NFC).
+ * An unknown public code gives the same answer as a wrong claim code and still counts against the
+ * user's and IP's attempt limits, so this page can't be used to probe codes faster than claiming.
+ */
+export async function claimByPublicCode(
+  db: Database,
+  opts: { publicCode: string; userId: string; ip: string | null; limitByIp: boolean; input: ClaimInput },
+): Promise<ClaimResult> {
+  const code = normalizePublicCode(opts.publicCode);
+  const [tag] = code ? await db.select({ id: tags.id }).from(tags).where(eq(tags.publicCode, code)) : [];
+  if (!tag) {
+    const checks = [
+      hit(db, `claim:user:${opts.userId}`, CLAIM_LIMITS.perUser),
+      ...(opts.limitByIp && opts.ip ? [hit(db, `claim:ip:${opts.ip}`, CLAIM_LIMITS.perIp)] : []),
+    ];
+    if ((await Promise.all(checks)).some((r) => !r.allowed)) return { ok: false, error: "rate_limited" };
+    return { ok: false, error: "invalid_code" };
+  }
+  return claimTag(db, {
+    tagId: tag.id,
+    userId: opts.userId,
+    ip: opts.ip,
+    limitByIp: opts.limitByIp,
+    input: opts.input,
+  });
+}
+
 /** The user's tags, newest first, with the profile type if one is attached. */
 export async function listOwnedTags(db: Database, userId: string) {
   return db

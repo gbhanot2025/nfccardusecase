@@ -152,6 +152,47 @@ test("admin can disable a tag and print a QR-only sheet", async ({ page, browser
   await expect(page.locator(".claim-code")).toHaveCount(0);
 });
 
+test("activate without NFC using the printed codes", async ({ page, browser }) => {
+  await becomeAdmin(page);
+  const { labels } = await createBatch(page, 1);
+  const [tag] = labels;
+
+  // The QR page links to code activation; it asks for an account first and comes back.
+  const customer = await newVisitor(browser);
+  const csp = watchCsp(customer);
+  await customer.goto(`/q/${tag.publicCode}`);
+  await customer.getByRole("link", { name: "Activate with the printed codes" }).click();
+  await expect(customer).toHaveURL(/\/login\?next=%2Factivate%2F/);
+  await customer.getByRole("link", { name: "Create one" }).click();
+  await signUpAndVerify(customer, uniqueEmail("nonfc"), {
+    from: "activate",
+    expectUrl: new RegExp(`/activate/${tag.publicCode}$`),
+  });
+
+  // Typing the code by hand also works, with spaces and lowercase.
+  await customer.goto("/activate");
+  await customer
+    .getByLabel("Code under the QR code")
+    .fill(`${tag.publicCode.slice(0, 5).toLowerCase()} ${tag.publicCode.slice(5)}`);
+  await customer.getByRole("button", { name: "Continue" }).click();
+  await expect(customer).toHaveURL(new RegExp(`/activate/${tag.publicCode}$`));
+
+  await customer.getByLabel("Claim code").fill("AAAAA-AAAAA");
+  await customer.getByLabel(/Digital business card/).check();
+  await customer.getByRole("button", { name: "Activate tag" }).click();
+  await expect(customer.locator(".alert.error")).toContainText("doesn't match");
+
+  await customer.getByLabel("Claim code").fill(tag.claimCode);
+  await customer.getByLabel(/Digital business card/).check();
+  await customer.getByRole("button", { name: "Activate tag" }).click();
+  await expect(customer).toHaveURL(/\/dashboard\?claimed=/);
+  await expect(customer.getByRole("list", { name: "Your tags" })).toContainText("Digital business card");
+
+  await customer.goto(`/activate/${tag.publicCode}`);
+  await expect(customer.locator(".alert.error")).toContainText("already activated");
+  expect(csp).toEqual([]);
+});
+
 test("unknown tags and codes are a plain 404", async ({ page }) => {
   for (const path of ["/t/0000000000000000", "/t/not-a-tag", "/q/ZZZZZZZZZZ", "/q/zz"]) {
     const response = await page.goto(path);

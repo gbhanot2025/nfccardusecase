@@ -56,6 +56,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <p className="muted">
             Tap your new tag with your phone and enter the claim code from the packaging to link it to this account.
           </p>
+          <p>
+            <Link href="/activate">No NFC? Activate with the printed codes</Link>
+          </p>
         </div>
       ) : (
         <div className="card">
@@ -103,7 +106,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             ))}
           </ul>
           <p className="muted">
-            Lost a tag? Turn it off here, then tap your replacement tag and choose to move this profile onto it.
+            Lost a tag? Turn it off here, then tap your replacement tag and choose to move this profile onto it. No NFC?{" "}
+            <Link href="/activate">Activate a tag with its printed codes</Link>.
           </p>
         </div>
       )}
