@@ -138,3 +138,25 @@ ${mapUrl ? `<p><a href="${escapeHtml(mapUrl)}">See the location they shared</a><
 </body></html>`;
   return { to: opts.to, subject: `Someone found your ${opts.itemLabel}`, text, html };
 }
+
+/** "Your tag was just scanned" for lost-item owners. No visitor IP or location is included. */
+export function scanAlertEmail(opts: {
+  to: string;
+  itemLabel: string;
+  source: "nfc" | "qr";
+  device: string | null;
+  at: Date;
+  dashboardUrl: string;
+}): OutgoingEmail {
+  const how = opts.source === "nfc" ? "tapped (NFC)" : "scanned (QR code)";
+  const when = `${opts.at.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  return actionEmail({
+    to: opts.to,
+    subject: `Your ${opts.itemLabel}'s tag was just ${opts.source === "nfc" ? "tapped" : "scanned"}`,
+    intro: `The tag on your ${opts.itemLabel} was just ${how} at ${when}${opts.device ? `, using ${opts.device}` : ""}. If the person sends you a message, you'll get another email.`,
+    action: "Open your dashboard",
+    url: opts.dashboardUrl,
+    outro:
+      "You get at most one of these every 15 minutes per tag. You can turn scan alerts off on the tag's page in your dashboard.",
+  });
+}

@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "@/lib/db";
 import { env } from "@/lib/env";
-import { auditLog, scanEvents, tags } from "@/lib/db/schema";
+import { auditLog, tags } from "@/lib/db/schema";
 import { TAG_ID_PATTERN } from "./codes";
 import {
   acceptTapCounter,
@@ -52,7 +52,7 @@ export type TapCheck =
 
 /**
  * Check an NFC tap's SUN parameters for a tag and, if genuine and newer than any tap seen before, advance the
- * counter and record a scan. Never throws on visitor input; logs only the reason, never the parameters.
+ * counter (the page then records the scan; see ./scans.ts). Never throws on visitor input; logs only the reason, never the parameters.
  *
  * This runs while rendering `/t/{tagId}` (a GET) on purpose: the chip produces a GET, and the only state it
  * changes is the forward-only counter, which a replayed or forged request can't move.
@@ -60,7 +60,6 @@ export type TapCheck =
 export async function checkTap(
   db: Database,
   tag: { id: string; uid: string | null; keyRef: string | null },
-  profileId: string | null,
   params: { picc?: unknown; cmac?: unknown },
   loader: MasterKeyLoader = loadMasterKey,
 ): Promise<TapCheck> {
@@ -79,8 +78,6 @@ export async function checkTap(
   if (!result.ok) return { kind: "unverified", reason: result.reason };
   if (result.uid !== tag.uid) return { kind: "unverified", reason: "uid_mismatch" };
   if (!(await acceptTapCounter(db, tag.id, result.counter))) return { kind: "unverified", reason: "replayed" };
-
-  await db.insert(scanEvents).values({ tagId: tag.id, profileId, source: "nfc" });
   return { kind: "verified", counter: result.counter };
 }
 

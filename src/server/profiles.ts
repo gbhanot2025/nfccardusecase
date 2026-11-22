@@ -69,3 +69,11 @@ export async function setLostMode(db: Database, userId: string, tagId: string, o
   });
   return true;
 }
+
+/** Turn "email me when this tag is scanned" on or off. */
+export async function setScanAlerts(db: Database, userId: string, tagId: string, on: boolean): Promise<boolean> {
+  const owned = await getOwnedProfile(db, userId, tagId);
+  if (!owned) return false;
+  await db.update(profiles).set({ scanAlerts: on }).where(eq(profiles.id, owned.profile.id));
+  return true;
+}

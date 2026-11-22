@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db";
 import { requireUser } from "@/lib/require-user";
 import type { EditorState } from "@/profile-types/shared/types";
-import { saveProfileData, setLostMode } from "@/server/profiles";
+import { saveProfileData, setLostMode, setScanAlerts } from "@/server/profiles";
 import { isTagId } from "@/server/tags";
 
 export async function saveProfileAction(tagId: string, _prev: EditorState, form: FormData): Promise<EditorState> {
@@ -19,5 +19,12 @@ export async function setLostModeAction(tagId: string, form: FormData): Promise<
   if (!isTagId(tagId)) return;
   const user = await requireUser(`/dashboard/tags/${tagId}`);
   await setLostMode(getDb(), user.id, tagId, form.get("lostMode") === "on");
+  revalidatePath(`/dashboard/tags/${tagId}`);
+}
+
+export async function setScanAlertsAction(tagId: string, form: FormData): Promise<void> {
+  if (!isTagId(tagId)) return;
+  const user = await requireUser(`/dashboard/tags/${tagId}`);
+  await setScanAlerts(getDb(), user.id, tagId, form.get("scanAlerts") === "on");
   revalidatePath(`/dashboard/tags/${tagId}`);
 }
