@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { enableTotp, signUpAndVerify, uniqueEmail, watchCsp } from "./helpers";
+import { enableTotp, latestLinkTo, signUpAndVerify, uniqueEmail, watchCsp } from "./helpers";
 import { randomUid, simulateTap } from "./ntag424-sim";
 
 type IssuedLabel = { tagId: string; publicCode: string; claimCode: string };
@@ -244,9 +244,9 @@ test("genuine NFC taps are verified once; copies and replays are not", async ({ 
   expect(csp).toEqual([]);
 });
 
-async function customerWithTag(browser: Browser, tag: IssuedLabel, type: RegExp): Promise<Page> {
+async function customerWithTag(browser: Browser, tag: IssuedLabel, type: RegExp, email = uniqueEmail("owner")) {
   const customer = await newVisitor(browser);
-  await signUpAndVerify(customer, uniqueEmail("owner"));
+  await signUpAndVerify(customer, email);
   await customer.goto(`/t/${tag.tagId}`);
   await customer.getByLabel("Claim code").fill(tag.claimCode);
   await customer.getByLabel(type).check();
@@ -329,6 +329,49 @@ test("lost pet: private microchip number, lost mode banner", async ({ page, brow
 
   await owner.getByRole("button", { name: /turn lost mode off/ }).click();
   await expect(owner.getByRole("heading", { name: "Lost mode is off" })).toBeVisible();
+  expect(csp).toEqual([]);
+});
+
+test("finder messages the owner with their location; the owner gets an email and sees it", async ({
+  page,
+  browser,
+}) => {
+  await becomeAdmin(page);
+  const { labels } = await createBatch(page, 1);
+  const ownerEmail = uniqueEmail("petowner");
+  const owner = await customerWithTag(browser, labels[0], /Lost pet/, ownerEmail);
+
+  // The owner sees a note instead of the form on their own page.
+  await owner.goto(`/q/${labels[0].publicCode}`);
+  await expect(owner.getByText("Finders can message you from here")).toBeVisible();
+  await expect(owner.getByRole("button", { name: "Send message" })).toHaveCount(0);
+
+  const context = await browser.newContext({
+    permissions: ["geolocation"],
+    geolocation: { latitude: 51.5007292, longitude: -0.1246254 },
+  });
+  const finder = await context.newPage();
+  const csp = watchCsp(finder);
+  await finder.goto(`/q/${labels[0].publicCode}`);
+  const html = await finder.content();
+  expect(html).not.toContain(ownerEmail);
+
+  await finder.getByLabel("Your message").fill("Found your dog near the bridge <3");
+  await finder.getByLabel(/How can the owner reach you/).fill("555-0100");
+  await finder.getByRole("button", { name: "Share my location" }).click();
+  await expect(finder.getByText(/Location added/)).toBeVisible();
+  await finder.getByRole("button", { name: "Send message" }).click();
+  await expect(finder.getByText("Your message was sent to the owner.")).toBeVisible();
+
+  const link = await latestLinkTo(ownerEmail, /found your pet/i);
+  expect(link).toContain("openstreetmap.org/?mlat=51.50073&mlon=-0.12463");
+
+  await owner.goto("/dashboard");
+  await owner.getByRole("link", { name: "Edit profile" }).click();
+  const list = owner.getByRole("list", { name: "Messages from finders" });
+  await expect(list).toContainText("Found your dog near the bridge <3");
+  await expect(list).toContainText("Contact: 555-0100");
+  await expect(list.getByRole("link", { name: "Location on map" })).toBeVisible();
   expect(csp).toEqual([]);
 });
 

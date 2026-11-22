@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { ProfilePublicPage } from "@/profile-types/modules";
-import type { ProfileType } from "@/profile-types/registry";
+import { PROFILE_TYPE_INFO, type ProfileType } from "@/profile-types/registry";
+import { createChallenge } from "@/server/altcha";
+import { sendFinderMessageAction } from "./finder/actions";
+import { FinderMessageForm } from "./finder/FinderMessageForm";
 
 /**
  * What a visitor sees for an active or disabled tag (from /t or /q): the profile type's public page.
- * Lost-item pages never get owner contact details; finder actions arrive in milestone 4.
+ * Lost-item pages never get owner contact details: finders reach the owner through the relay form.
  */
 export function TagStatusView({
   status,
@@ -61,7 +64,14 @@ export function TagStatusView({
         data={profile.data}
         lostMode={profile.lostMode}
         vcardUrl={profile.type === "business_card" ? `/q/${publicCode}/vcard` : undefined}
-      />
+      >
+        {PROFILE_TYPE_INFO[profile.type].lostItem &&
+          (isOwner ? (
+            <p className="muted">Finders can message you from here. Messages arrive by email and in your dashboard.</p>
+          ) : (
+            <FinderMessageForm action={sendFinderMessageAction.bind(null, publicCode)} challenge={createChallenge()} />
+          ))}
+      </ProfilePublicPage>
     </>
   );
 }

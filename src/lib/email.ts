@@ -92,3 +92,49 @@ export function existingAccountEmail(to: string, loginUrl: string): OutgoingEmai
       "If this wasn't you, no action is needed. If you forgot your password, use 'Forgot password' on the login page.",
   });
 }
+
+/**
+ * A finder's message relayed to the owner. Everything the finder typed is escaped (HTML) and stays in
+ * the body: subject and headers are fixed, so nothing a finder sends can inject headers.
+ */
+export function finderMessageEmail(opts: {
+  to: string;
+  itemLabel: string;
+  message: string;
+  finderContact?: string | null;
+  location?: { latitude: number; longitude: number } | null;
+  dashboardUrl: string;
+}): OutgoingEmail {
+  const appName = env().APP_NAME;
+  const mapUrl = opts.location
+    ? `https://www.openstreetmap.org/?mlat=${opts.location.latitude}&mlon=${opts.location.longitude}#map=17/${opts.location.latitude}/${opts.location.longitude}`
+    : null;
+  const contact = opts.finderContact?.trim() || null;
+
+  const text = [
+    `Someone found your ${opts.itemLabel} and sent you a message:`,
+    "",
+    opts.message,
+    "",
+    contact ? `How to reach them (as they typed it): ${contact}` : "They didn't leave contact details.",
+    mapUrl ? `They shared their location: ${mapUrl}` : "",
+    "",
+    "Your contact details were not shown to them. Be careful with payment requests or links from strangers.",
+    `All messages: ${opts.dashboardUrl}`,
+    "",
+    `— ${appName}`,
+  ]
+    .filter((line, i, all) => line !== "" || all[i - 1] !== "")
+    .join("\n");
+
+  const html = `<!doctype html><html><body style="font-family:system-ui,sans-serif;line-height:1.5;color:#111">
+<p>Someone found your ${escapeHtml(opts.itemLabel)} and sent you a message:</p>
+<blockquote style="margin:0;padding:10px 14px;border-left:3px solid #1f5eff;background:#f4f6fb;white-space:pre-wrap">${escapeHtml(opts.message)}</blockquote>
+<p>${contact ? `How to reach them (as they typed it): <strong>${escapeHtml(contact)}</strong>` : "They didn't leave contact details."}</p>
+${mapUrl ? `<p><a href="${escapeHtml(mapUrl)}">See the location they shared</a></p>` : ""}
+<p style="color:#555;font-size:14px">Your contact details were not shown to them. Be careful with payment requests or links from strangers.</p>
+<p><a href="${escapeHtml(opts.dashboardUrl)}">See all messages</a></p>
+<p style="color:#555;font-size:14px">— ${escapeHtml(appName)}</p>
+</body></html>`;
+  return { to: opts.to, subject: `Someone found your ${opts.itemLabel}`, text, html };
+}

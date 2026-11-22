@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/require-user";
 import { ProfileEditor } from "@/profile-types/modules";
 import { FORM_FACTOR_LABEL, PROFILE_TYPE_INFO } from "@/profile-types/registry";
 import { getOwnedProfile } from "@/server/profiles";
+import { listMessagesForProfile } from "@/server/relay";
 import { saveProfileAction, setLostModeAction } from "./actions";
 
 export const metadata: Metadata = { title: "Edit profile" };
@@ -13,10 +14,12 @@ export const metadata: Metadata = { title: "Edit profile" };
 export default async function EditProfilePage({ params }: PageProps<"/dashboard/tags/[tagId]">) {
   const { tagId } = await params;
   const user = await requireUser(`/dashboard/tags/${encodeURIComponent(tagId)}`);
-  const owned = await getOwnedProfile(getDb(), user.id, tagId);
+  const db = getDb();
+  const owned = await getOwnedProfile(db, user.id, tagId);
   if (!owned) notFound();
   const { tag, profile } = owned;
   const info = PROFILE_TYPE_INFO[profile.type];
+  const finderMessages = info.lostItem ? await listMessagesForProfile(db, profile.id) : [];
 
   return (
     <main className="wide">
@@ -51,6 +54,43 @@ export default async function EditProfilePage({ params }: PageProps<"/dashboard/
               {profile.lostMode ? "I found it: turn lost mode off" : "It's lost: turn lost mode on"}
             </button>
           </form>
+        </div>
+      )}
+
+      {info.lostItem && (
+        <div className="card">
+          <h2>Messages from finders</h2>
+          {finderMessages.length === 0 ? (
+            <p className="muted">
+              No messages yet. When someone finds it, their messages appear here and in your email.
+            </p>
+          ) : (
+            <ul className="plain messages" aria-label="Messages from finders">
+              {finderMessages.map((m) => (
+                <li key={m.id}>
+                  <div>
+                    <p className="message-body">{m.body}</p>
+                    <p className="muted">
+                      {m.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC
+                      {m.finderContact && <> · Contact: {m.finderContact}</>}
+                      {m.latitude !== null && m.longitude !== null && (
+                        <>
+                          {" · "}
+                          <a
+                            href={`https://www.openstreetmap.org/?mlat=${m.latitude}&mlon=${m.longitude}#map=17/${m.latitude}/${m.longitude}`}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            Location on map
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
