@@ -85,6 +85,9 @@ alerts for NFC). Unseal with two keys: `dc exec openbao bao operator unseal` (tw
 - **Things to watch in the app logs:** "Unverified tap" warnings (many in a row for one tag may mean a cloned tag),
   "master key unavailable" (OpenBao sealed or token expired), "email could not be sent" (SMTP problem).
 - **Disk:** keep an eye on `df -h` (backups and photos grow).
+- **Housekeeping** runs hourly when `/api/health` is called: expired rate-limit counters are removed, and finder
+  messages and scan history older than 180 days are deleted (`RETENTION_DAYS` in `src/server/maintenance.ts`).
+  Without an uptime monitor calling the health check, it doesn't run, so set one up.
 
 ## 6. Incidents
 
