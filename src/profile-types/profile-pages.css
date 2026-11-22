@@ -181,6 +181,16 @@ main.pp {
 
 /* ---------- Editors ---------- */
 
+.pp-field {
+  display: grid;
+  gap: 6px;
+}
+
+.pp-field label {
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
 .pp-editor textarea,
 .pp-editor select {
   font: inherit;

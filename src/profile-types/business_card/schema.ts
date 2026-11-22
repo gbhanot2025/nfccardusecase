@@ -120,7 +120,11 @@ export function isBusinessCardEmpty(data: BusinessCardData): boolean {
   return !data.name && !data.company && !data.phones?.length && !data.emails?.length && !data.website;
 }
 
-/** Maps the editor's form fields to the raw object the schema validates. Keeps only known keys. */
+/**
+ * Maps the editor's form fields to the raw object the schema validates. Keeps only known keys.
+ * Image keys are never read from the form (a client could point them at someone else's upload):
+ * the upload action (milestone 4) sets them, and the save action keeps the stored value.
+ */
 export function businessCardFromFormData(form: FormData): Record<string, unknown> {
   return {
     name: formString(form, "name"),
@@ -132,7 +136,5 @@ export function businessCardFromFormData(form: FormData): Record<string, unknown
     website: formString(form, "website"),
     companyUrl: formString(form, "companyUrl"),
     socials: formRows(form, "socials", ["network", "url"], "url", BUSINESS_CARD_LIMITS.socials),
-    photoKey: formString(form, "photoKey"),
-    logoKey: formString(form, "logoKey"),
   };
 }

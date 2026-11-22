@@ -33,11 +33,15 @@ export function isLostDeviceEmpty(data: LostDeviceData): boolean {
   return !data.nickname && !data.returnMessage && !data.photoKey;
 }
 
+/**
+ * Maps the editor's form fields to the raw object the schema validates. Keeps only known keys.
+ * Image keys are never read from the form (a client could point them at someone else's upload):
+ * the upload action (milestone 4) sets them, and the save action keeps the stored value.
+ */
 export function lostDeviceFromFormData(form: FormData): Record<string, unknown> {
   return {
     nickname: formString(form, "nickname"),
     returnMessage: formString(form, "returnMessage"),
     reward: formString(form, "reward"),
-    photoKey: formString(form, "photoKey"),
   };
 }

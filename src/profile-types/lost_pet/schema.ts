@@ -48,6 +48,11 @@ export function isLostPetEmpty(data: LostPetData): boolean {
   return !data.petName && !data.breed && !data.photoKey;
 }
 
+/**
+ * Maps the editor's form fields to the raw object the schema validates. Keeps only known keys.
+ * Image keys are never read from the form (a client could point them at someone else's upload):
+ * the upload action (milestone 4) sets them, and the save action keeps the stored value.
+ */
 export function lostPetFromFormData(form: FormData): Record<string, unknown> {
   return {
     petName: formString(form, "petName"),
@@ -56,6 +61,5 @@ export function lostPetFromFormData(form: FormData): Record<string, unknown> {
     vetName: formString(form, "vetName"),
     vetPhone: formString(form, "vetPhone"),
     reward: formString(form, "reward"),
-    photoKey: formString(form, "photoKey"),
   };
 }
