@@ -141,10 +141,36 @@ describe.skipIf(!db)("finder relay", () => {
     expect(await verifySolution(d, solve(old))).toBe(false);
   });
 
-  it("limits messages per IP", async () => {
-    for (let i = 0; i < RELAY_LIMITS.perIp.limit; i++)
+  it("limits each sender, but one sender can't stop others from reaching the owner", async () => {
+    for (let i = 0; i < RELAY_LIMITS.perTagPerSender.limit; i++) {
       expect((await send(petCode, { message: `m${i}` })).ok).toBe(true);
-    expect(await send(petCode, { message: "one more" })).toMatchObject({ ok: false, error: "rate_limited" });
-    expect((await send(petCode, { message: "other ip" }, "198.51.100.8")).ok).toBe(true);
+    }
+    for (let i = 0; i < 20; i++) {
+      expect(await send(petCode, { message: "spam" })).toMatchObject({ ok: false, error: "rate_limited" });
+    }
+    expect((await send(petCode, { message: "a real finder" }, "198.51.100.8")).ok).toBe(true);
+  });
+
+  it("limits a sender by IP, with IPv6 counted per /64", async () => {
+    // Different addresses in one /64 are one sender: the per-tag cap applies to all of them together.
+    for (let i = 1; i <= RELAY_LIMITS.perTagPerSender.limit; i++) {
+      expect((await send(petCode, { message: `m${i}` }, `2001:db8:1:2::${i}`)).ok).toBe(true);
+    }
+    expect(await send(petCode, { message: "x" }, "2001:db8:1:2::99")).toMatchObject({
+      ok: false,
+      error: "rate_limited",
+    });
+    expect((await send(petCode, { message: "other network" }, "2001:db8:1:3::1")).ok).toBe(true);
+  });
+
+  it("over the daily email cap the message is saved but not emailed", async () => {
+    await pool!.query("INSERT INTO app_rate_limits (key, count, reset_at) VALUES ($1, $2, now() + interval '1 day')", [
+      `relay:email:${petTagId}`,
+      RELAY_LIMITS.emailsPerTag.limit,
+    ]);
+    const result = await send(petCode, { message: "still saved" });
+    expect(result).toMatchObject({ ok: true, email: null });
+    const [profile] = await d.select().from(schema.profiles).where(eq(schema.profiles.tagId, petTagId));
+    expect((await listMessagesForProfile(d, profile.id))[0].body).toBe("still saved");
   });
 });

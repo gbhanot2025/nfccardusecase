@@ -25,6 +25,7 @@ export async function sendFinderMessageAction(
   const result = await submitFinderMessage(db, {
     publicCode,
     ip: await clientIp(),
+    limitByIp: env().AUTH_RATE_LIMIT === "on",
     raw: {
       message: form.get("message"),
       contact: form.get("contact"),
@@ -35,6 +36,7 @@ export async function sendFinderMessageAction(
   });
   if (!result.ok) return { status: "error", message: result.message ?? ERRORS[result.error] };
 
+  if (!result.email) return { status: "sent" }; // saved; the owner sees it in the dashboard
   try {
     await sendEmail(finderMessageEmail({ ...result.email, dashboardUrl: `${env().APP_BASE_URL}/dashboard` }));
     await markDelivered(db, result.messageId);
