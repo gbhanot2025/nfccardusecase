@@ -12,8 +12,12 @@ Product spec: [`docs/spec.md`](docs/spec.md). Working rules for Claude Code: [`C
 **Milestone 2 (tags and claiming) is done:** admins generate tag batches (random IDs, QR codes, claim codes stored only
 as Argon2 hashes) with a one-time printable label sheet and CSV; `/t/{tagId}` routes by tag state; customers claim a
 tag with its claim code (rate-limited) and choose a profile type, or move an existing profile onto a replacement tag;
-owners can turn tags off and on; admins can disable tags and reissue lost claim codes. NTAG 424 tap verification and
-the profile editors/public pages come next.
+owners can turn tags off and on; admins can disable tags and reissue lost claim codes.
+
+**Milestone 3 (profiles) is done:** genuine NFC taps are verified (NTAG 424 SUN: signature, chip UID, forward-only
+counter); owners edit their profile from the dashboard (business card, lost pet, lost device, lost wallet/ID) and
+turn lost mode on/off; `/t` and `/q` show the real public pages; business cards have "Save contact" (vCard 3.0).
+Photo uploads and the finder relay come in milestone 4.
 
 ## Run it locally
 

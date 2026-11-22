@@ -1,23 +1,28 @@
 import Link from "next/link";
-import { PROFILE_TYPE_INFO, type ProfileType } from "@/profile-types/registry";
+import { ProfilePublicPage } from "@/profile-types/modules";
+import type { ProfileType } from "@/profile-types/registry";
 
 /**
- * What a visitor sees for an active or disabled tag. Milestone 3 replaces the active view with
- * each profile type's public page. Shows nothing about the owner.
+ * What a visitor sees for an active or disabled tag (from /t or /q): the profile type's public page.
+ * Lost-item pages never get owner contact details; finder actions arrive in milestone 4.
  */
 export function TagStatusView({
   status,
-  profileType,
+  profile,
+  publicCode,
+  tagId,
   isOwner,
   tap = "none",
 }: {
   status: "active" | "disabled";
-  profileType: ProfileType | null;
+  profile: { type: ProfileType; data: unknown; lostMode: boolean } | null;
+  publicCode: string;
+  tagId: string;
   isOwner: boolean;
   /** Result of the NFC tap check (only on /t). */
   tap?: "none" | "verified" | "unverified";
 }) {
-  if (status === "disabled") {
+  if (status === "disabled" || !profile) {
     return (
       <main>
         <h1>This tag is no longer active</h1>
@@ -32,27 +37,31 @@ export function TagStatusView({
   }
 
   return (
-    <main>
-      <h1>{profileType ? PROFILE_TYPE_INFO[profileType].label : "Tag"}</h1>
+    <>
+      {isOwner && (
+        <p className="owner-bar">
+          This is your tag. <Link href={`/dashboard/tags/${tagId}`}>Edit profile</Link>
+        </p>
+      )}
       {tap === "verified" && (
-        <p className="badge active" data-tap="verified">
-          ✓ Genuine tag
+        <p className="tap-note">
+          <span className="badge active" data-tap="verified">
+            ✓ Genuine tag
+          </span>
         </p>
       )}
       {tap === "unverified" && (
-        <p className="muted" data-tap="unverified">
+        <p className="tap-note muted" data-tap="unverified">
           This link couldn&apos;t be confirmed as a fresh tap from the original tag. If you just tapped a tag, tap it
           again.
         </p>
       )}
-      <div className="card">
-        <p className="muted">This profile hasn&apos;t been set up yet. Check back soon.</p>
-        {isOwner && (
-          <p>
-            This is your tag. <Link href="/dashboard">Go to your dashboard</Link>.
-          </p>
-        )}
-      </div>
-    </main>
+      <ProfilePublicPage
+        type={profile.type}
+        data={profile.data}
+        lostMode={profile.lostMode}
+        vcardUrl={profile.type === "business_card" ? `/q/${publicCode}/vcard` : undefined}
+      />
+    </>
   );
 }

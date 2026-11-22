@@ -36,7 +36,8 @@ Brand/domain is not final: use `APP_BASE_URL` from env, never hardcode a domain.
 
 - Profile types live in `src/profile-types/{type}/` with:
   `schema.ts` (Zod), `Editor.tsx`, `PublicPage.tsx`, optional `actions.ts`.
-  Register types only in `src/profile-types/registry.ts`.
+  Register types only in `src/profile-types/registry.ts` (names/labels, client-safe) and
+  `src/profile-types/modules.ts` (schemas + components, server-only).
 - `profiles.data` is JSON; always validate with the type's Zod schema on write and read.
 - One profile per tag: unique constraint on `profiles.tag_id`.
 - Tag states: `unclaimed` → `active` → `disabled`. `/t/{id}` routes by state.

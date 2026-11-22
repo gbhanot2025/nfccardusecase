@@ -369,3 +369,24 @@ form.inline {
     margin: 0;
   }
 }
+
+.card.lost-on {
+  border-color: var(--danger);
+}
+
+.tap-note {
+  max-width: 440px;
+  margin: 16px auto 0;
+  padding: 0 16px;
+  font-size: 0.9rem;
+}
+
+.owner-bar {
+  max-width: 440px;
+  margin: 16px auto 0;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.9rem;
+}
