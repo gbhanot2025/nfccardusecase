@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/require-user";
 import { createBatch, createBatchInput, type IssuedTag, reissueClaimCodes } from "@/server/batches";
 import { qrSvg, qrUrl, tagUrl } from "@/server/links";
 import { adminDisableTag, adminEnableTag, isTagId } from "@/server/tags";
+import { type ImportResult, importEncoderResults, MAX_IMPORT_BYTES } from "@/server/taps";
 
 /** What the admin gets back once: everything needed to print labels and the CSV. */
 export type IssuedBatch = {
@@ -72,4 +73,24 @@ export async function adminSetDisabledAction(formData: FormData): Promise<void> 
   if (disable) await adminDisableTag(getDb(), admin.id, tagId.data);
   else await adminEnableTag(getDb(), admin.id, tagId.data);
   revalidatePath("/admin", "layout");
+}
+
+export type ImportState = { error?: string; result?: ImportResult };
+
+/** Upload the encoder's results CSV so each tag knows its chip UID (needed to verify taps). */
+export async function importEncoderResultsAction(
+  batchId: string,
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  const admin = await requireAdmin("/admin");
+  const id = batchIdSchema.safeParse(batchId);
+  if (!id.success) return { error: "Unknown batch." };
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose the encoder's results CSV." };
+  if (file.size > MAX_IMPORT_BYTES) return { error: "That file is too large for an encoder results CSV." };
+
+  const result = await importEncoderResults(getDb(), id.data, await file.text(), admin.id);
+  revalidatePath(`/admin/batches/${id.data}`);
+  return { result };
 }

@@ -43,7 +43,9 @@ npm run admin:grant -- you@example.com
 3. **Save the claim codes immediately**: download the CSV and/or print the labels (QR code + claim code per tag).
    Claim codes are stored only as hashes and are never shown again. If they're lost before shipping, use
    **Reissue claim codes** on the batch page (unclaimed tags get new codes; the old ones stop working).
-4. To try claiming without a physical tag, open a tag's NFC link (`/t/{tag_id}` from the CSV) and enter its claim code.
+4. Encode the tags with the encoder (`encoder/README.md`), then on the batch page **Import results** with the
+   encoder's results CSV. This links each tag to its chip UID; until then taps can't be verified.
+5. To try claiming without a physical tag, open a tag's NFC link (`/t/{tag_id}` from the CSV) and enter its claim code.
 
 | Link              | Who uses it                                  | What it does                                  |
 | ----------------- | -------------------------------------------- | --------------------------------------------- |
@@ -51,6 +53,14 @@ npm run admin:grant -- you@example.com
 | `/q/{publicCode}` | Printed QR code                              | Public page only: never claims or edits       |
 | `/activate`       | Customers whose phone has no NFC             | Activate with the printed code + claim code   |
 | `/admin`          | Admins (with 2FA)                            | Batches, tag search, disable/enable           |
+
+### How taps are verified
+
+A genuine tap opens `/t/{tagId}?picc=…&cmac=…`. The server decrypts `picc` (chip UID + tap counter), checks the
+`cmac` signature with that chip's own key (derived from the master key in OpenBao), checks the UID belongs to this
+tag, and only accepts a counter higher than the last one seen. Verified taps show "✓ Genuine tag" and are recorded
+as scans; copied or replayed links still show the public page but are not counted. Claiming never depends on it (the
+claim code is the secret).
 
 ## Tests
 

@@ -15,6 +15,13 @@
       "when": 1795358930438,
       "tag": "0001_tags_and_claiming",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795362609887,
+      "tag": "0002_tag_uid",
+      "breakpoints": true
     }
   ]
 }

@@ -42,6 +42,14 @@ export const envSchema = z
     // Secrets vault (used from milestone 3).
     OPENBAO_ADDR: optionalUrl,
     OPENBAO_TOKEN: optionalString,
+    // Development/tests only: a fixed NTAG 424 master key instead of OpenBao (never in a real deployment).
+    NTAG424_TEST_MASTER_KEY: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z
+        .string()
+        .regex(/^[0-9A-Fa-f]{32}$/, "NTAG424_TEST_MASTER_KEY must be 32 hex characters")
+        .optional(),
+    ),
   })
   .superRefine((env, ctx) => {
     // A production build served on localhost (e.g. the e2e test run) can't be a real deployment,
@@ -56,6 +64,13 @@ export const envSchema = z
           code: "custom",
           path: ["MAIL_OUTBOX_DIR"],
           message: "The file outbox is for development and tests only",
+        });
+      }
+      if (env.NTAG424_TEST_MASTER_KEY) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["NTAG424_TEST_MASTER_KEY"],
+          message: "The test master key is for development and tests only; use OpenBao",
         });
       }
       if (env.AUTH_RATE_LIMIT === "off") {

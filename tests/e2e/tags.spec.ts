@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { enableTotp, signUpAndVerify, uniqueEmail, watchCsp } from "./helpers";
+import { randomUid, simulateTap } from "./ntag424-sim";
 
 type IssuedLabel = { tagId: string; publicCode: string; claimCode: string };
 
@@ -190,6 +191,56 @@ test("activate without NFC using the printed codes", async ({ page, browser }) =
 
   await customer.goto(`/activate/${tag.publicCode}`);
   await expect(customer.locator(".alert.error")).toContainText("already activated");
+  expect(csp).toEqual([]);
+});
+
+test("genuine NFC taps are verified once; copies and replays are not", async ({ page, browser }) => {
+  const MASTER = "000102030405060708090A0B0C0D0E0F";
+  const csp = watchCsp(page);
+  await becomeAdmin(page);
+  const { labels } = await createBatch(page, 1);
+  const [tag] = labels;
+  const uid = randomUid();
+
+  // Link the tag to its chip by uploading the encoder's results CSV.
+  await page.getByLabel("Results CSV").setInputFiles({
+    name: "results.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      `tag_id,uid,encoded_at,status,key_ref\r\n${tag.tagId},${uid},2026-11-22T15:00:00+00:00,ok,test:ntag424-master-key\r\n`,
+    ),
+  });
+  await page.getByRole("button", { name: "Import results" }).click();
+  await expect(page.getByText("1 linked")).toBeVisible();
+  await expect(page.getByRole("cell", { name: uid })).toBeVisible();
+
+  // The admin claims it with a real-looking tap.
+  const first = simulateTap(MASTER, uid, 2);
+  await page.goto(`/t/${tag.tagId}?picc=${first.picc}&cmac=${first.cmac}`);
+  await page.getByLabel("Claim code").fill(tag.claimCode);
+  await page.getByLabel(/Lost device/).check();
+  await page.getByRole("button", { name: "Activate tag" }).click();
+  await expect(page).toHaveURL(/\/dashboard\?claimed=/);
+
+  // A finder taps: genuine. The same URL again (a copy or replay): not confirmed.
+  const finder = await newVisitor(browser);
+  const next = simulateTap(MASTER, uid, 3);
+  const tapUrl = `/t/${tag.tagId}?picc=${next.picc}&cmac=${next.cmac}`;
+  await finder.goto(tapUrl);
+  await expect(finder.getByText("✓ Genuine tag")).toBeVisible();
+  await finder.goto(tapUrl);
+  await expect(finder.locator("[data-tap=unverified]")).toBeVisible();
+  await expect(finder.getByText("✓ Genuine tag")).toHaveCount(0);
+
+  // A tap from a different chip pasted onto this tag's URL isn't genuine either.
+  const other = simulateTap(MASTER, randomUid(), 9);
+  await finder.goto(`/t/${tag.tagId}?picc=${other.picc}&cmac=${other.cmac}`);
+  await expect(finder.locator("[data-tap=unverified]")).toBeVisible();
+
+  // A plain link shows the page without either message.
+  await finder.goto(`/t/${tag.tagId}`);
+  await expect(finder.getByRole("heading", { name: "Lost device" })).toBeVisible();
+  await expect(finder.locator("[data-tap]")).toHaveCount(0);
   expect(csp).toEqual([]);
 });
 

@@ -47,6 +47,13 @@ describe("environment validation", () => {
     expect(() => parseEnv({ ...prod, MAIL_OUTBOX_DIR: "/tmp/out" })).toThrow(/outbox/);
   });
 
+  it("never allows the NTAG 424 test master key in a real deployment", () => {
+    const key = "000102030405060708090A0B0C0D0E0F";
+    expect(() => parseEnv({ ...prod, NTAG424_TEST_MASTER_KEY: key })).toThrow(/test master key/);
+    expect(parseEnv({ ...base, NTAG424_TEST_MASTER_KEY: key }).NTAG424_TEST_MASTER_KEY).toBe(key);
+    expect(() => parseEnv({ ...base, NTAG424_TEST_MASTER_KEY: "abc" })).toThrow(/32 hex/);
+  });
+
   it("never includes secret values in error messages", () => {
     const secret = "super-secret-value-that-must-not-leak";
     try {

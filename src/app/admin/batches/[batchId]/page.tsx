@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/require-user";
 import { FORM_FACTOR_LABEL, PROFILE_TYPE_INFO } from "@/profile-types/registry";
 import { getBatch } from "@/server/batches";
 import { AdminTagActions, StatusBadge } from "../../TagBits";
+import { ImportEncoderResults } from "./ImportEncoderResults";
 import { ReissueCodes } from "./ReissueCodes";
 
 export const metadata: Metadata = { title: "Batch" };
@@ -37,6 +38,8 @@ export default async function BatchPage({ params }: PageProps<"/admin/batches/[b
         </div>
       </div>
 
+      <ImportEncoderResults batchId={batch.id} encoded={tags.filter((t) => t.uid).length} total={tags.length} />
+
       <ReissueCodes batchId={batch.id} unclaimed={unclaimed}>
         <div className="card">
           <h2>Tags</h2>
@@ -46,6 +49,7 @@ export default async function BatchPage({ params }: PageProps<"/admin/batches/[b
                 <th>Tag ID</th>
                 <th>Public code</th>
                 <th>Status</th>
+                <th>Chip UID</th>
                 <th>Claimed</th>
                 <th />
               </tr>
@@ -58,6 +62,7 @@ export default async function BatchPage({ params }: PageProps<"/admin/batches/[b
                   <td>
                     <StatusBadge status={t.status} reason={t.disabledReason} />
                   </td>
+                  <td className="mono">{t.uid ?? "—"}</td>
                   <td>{t.claimedAt ? t.claimedAt.toISOString().slice(0, 10) : "—"}</td>
                   <td>
                     <AdminTagActions tagId={t.id} status={t.status} reason={t.disabledReason} />

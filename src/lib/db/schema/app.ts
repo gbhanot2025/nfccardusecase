@@ -52,7 +52,11 @@ export const tags = pgTable(
     status: tagStatusEnum("status").notNull().default("unclaimed"),
     ownerId: text("owner_id").references(() => user.id, { onDelete: "set null" }),
     batchId: text("batch_id").references(() => tagBatches.id, { onDelete: "restrict" }),
+    // Chip serial number (7-byte UID, uppercase hex) and master-key version, imported from the encoder's
+    // results. A verified tap must come from this UID, so a valid tap can't be pasted onto another tag.
+    uid: text("uid").unique(),
     keyRef: text("key_ref"),
+    encodedAt: timestamp("encoded_at", { withTimezone: true }),
     lastCounter: integer("last_counter").notNull().default(0),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),
@@ -66,6 +70,7 @@ export const tags = pgTable(
     check("tags_active_has_owner", sql`${t.status} <> 'active' OR ${t.ownerId} IS NOT NULL`),
     check("tags_allowed_types_not_empty", sql`cardinality(${t.allowedTypes}) > 0`),
     check("tags_counter_non_negative", sql`${t.lastCounter} >= 0`),
+    check("tags_uid_format", sql`${t.uid} ~ '^[0-9A-F]{14}$'`),
     check("tags_disabled_has_reason", sql`(${t.status} = 'disabled') = (${t.disabledReason} IS NOT NULL)`),
   ],
 );
