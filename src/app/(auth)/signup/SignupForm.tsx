@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FormError } from "@/components/FormError";
 import { authClient } from "@/lib/auth-client";
 
-export function SignupForm() {
+export function SignupForm({ next }: { next: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export function SignupForm() {
       name,
       email,
       password,
-      callbackURL: "/dashboard",
+      callbackURL: next,
     });
     setPending(false);
 

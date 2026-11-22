@@ -22,7 +22,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <LoginForm next={next} />
       </div>
       <p className="muted">
-        <Link href="/forgot-password">Forgot password?</Link> · No account? <Link href="/signup">Create one</Link>
+        <Link href="/forgot-password">Forgot password?</Link> · No account?{" "}
+        <Link href={`/signup?next=${encodeURIComponent(next)}`}>Create one</Link>
       </p>
     </main>
   );
