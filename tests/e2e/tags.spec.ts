@@ -106,7 +106,7 @@ test("batch → tap → sign up → claim → turn off → replace", async ({ pa
 
   // Visitors now see the (not yet set up) profile, never a claim form.
   await stranger.goto(`/t/${first.tagId}`);
-  await expect(stranger.getByRole("heading", { name: "Lost pet" })).toBeVisible();
+  await expect(stranger.getByRole("heading", { name: "Pet tag" })).toBeVisible();
   await expect(stranger.getByLabel("Claim code")).toHaveCount(0);
 
   // The customer loses the tag and turns it off.
@@ -127,7 +127,7 @@ test("batch → tap → sign up → claim → turn off → replace", async ({ pa
 
   // A second person can't claim an already-claimed tag.
   await stranger.goto(`/t/${second.tagId}`);
-  await expect(stranger.getByRole("heading", { name: "Lost pet" })).toBeVisible();
+  await expect(stranger.getByRole("heading", { name: "Pet tag" })).toBeVisible();
 
   expect(csp).toEqual([]);
   expect(customerCsp).toEqual([]);
@@ -239,8 +239,96 @@ test("genuine NFC taps are verified once; copies and replays are not", async ({ 
 
   // A plain link shows the page without either message.
   await finder.goto(`/t/${tag.tagId}`);
-  await expect(finder.getByRole("heading", { name: "Lost device" })).toBeVisible();
+  await expect(finder.getByRole("heading", { name: "Please return this device" })).toBeVisible();
   await expect(finder.locator("[data-tap]")).toHaveCount(0);
+  expect(csp).toEqual([]);
+});
+
+async function customerWithTag(browser: Browser, tag: IssuedLabel, type: RegExp): Promise<Page> {
+  const customer = await newVisitor(browser);
+  await signUpAndVerify(customer, uniqueEmail("owner"));
+  await customer.goto(`/t/${tag.tagId}`);
+  await customer.getByLabel("Claim code").fill(tag.claimCode);
+  await customer.getByLabel(type).check();
+  await customer.getByRole("button", { name: "Activate tag" }).click();
+  await expect(customer).toHaveURL(/\/dashboard\?claimed=/);
+  return customer;
+}
+
+test("business card: edit, public page and Save contact", async ({ page, browser }) => {
+  await becomeAdmin(page);
+  const { labels } = await createBatch(page, 2);
+  const [card, pet] = labels;
+  const owner = await customerWithTag(browser, card, /Digital business card/);
+  const csp = watchCsp(owner);
+
+  await owner.getByRole("link", { name: "Edit profile" }).click();
+  await owner.getByLabel("Full name").fill("Ada Lovelace");
+  await owner.getByLabel("Job title").fill("Engineer");
+  await owner.getByLabel("Company", { exact: true }).fill("Analytical Engines");
+  await owner.getByRole("button", { name: "Add phone" }).click();
+  await owner.getByLabel("Phone number 1").fill("+44 20 7946 0958");
+  await owner.getByRole("button", { name: "Add email" }).click();
+  await owner.getByLabel("Email address 1").fill("ada@example.com");
+  await owner.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(owner.getByText("Saved.")).toBeVisible();
+
+  const visitor = await newVisitor(browser);
+  await visitor.goto(`/q/${card.publicCode}`);
+  await expect(visitor.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
+  await expect(visitor.getByText("Engineer · Analytical Engines")).toBeVisible();
+  await expect(visitor.getByText("+44 20 7946 0958")).toBeVisible();
+  await expect(visitor.getByText("This is your tag")).toHaveCount(0);
+
+  const vcardHref = await visitor.getByRole("link", { name: "Save contact" }).getAttribute("href");
+  const vcard = await visitor.request.get(vcardHref!);
+  expect(vcard.headers()["content-type"]).toContain("text/vcard");
+  expect(vcard.headers()["content-disposition"]).toContain("ada-lovelace.vcf");
+  const body = await vcard.text();
+  expect(body).toContain("FN:Ada Lovelace\r\n");
+  expect(body).toContain("+44 20 7946 0958");
+  expect((await visitor.request.get(`/q/${pet.publicCode}/vcard`)).status()).toBe(404);
+
+  // The owner sees an edit shortcut on their own public page.
+  await owner.goto(`/q/${card.publicCode}`);
+  await expect(owner.getByRole("link", { name: "Edit profile" })).toBeVisible();
+  expect(csp).toEqual([]);
+});
+
+test("lost pet: private microchip number, lost mode banner", async ({ page, browser }) => {
+  await becomeAdmin(page);
+  const { labels } = await createBatch(page, 1);
+  const [tag] = labels;
+  const owner = await customerWithTag(browser, tag, /Lost pet/);
+  const csp = watchCsp(owner);
+
+  await owner.getByRole("link", { name: "Edit profile" }).click();
+  await owner.getByLabel("Pet's name").fill("Biscuit");
+  await owner.getByLabel("Breed").fill("Beagle");
+  await owner.getByLabel("Microchip number (private)").fill("985 112 003 456 789");
+  await owner.getByLabel("Reward (optional)").fill("$100");
+  await owner.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(owner.getByText("Saved.")).toBeVisible();
+
+  const finder = await newVisitor(browser);
+  await finder.goto(`/q/${tag.publicCode}`);
+  await expect(finder.getByRole("heading", { name: "Biscuit" })).toBeVisible();
+  await expect(finder.getByText("This pet is microchipped")).toBeVisible();
+  const html = await finder.content();
+  expect(html).not.toContain("985112003456789");
+  expect(html).not.toContain("985 112");
+  await expect(finder.getByText("I found this pet")).toHaveCount(0);
+  await expect(finder.getByText("$100")).toHaveCount(0);
+
+  await owner.getByRole("button", { name: /turn lost mode on/ }).click();
+  await expect(owner.getByRole("heading", { name: "Lost mode is ON" })).toBeVisible();
+  await finder.reload();
+  await expect(finder.getByText("I found this pet")).toBeVisible();
+  await expect(finder.getByText("$100")).toBeVisible();
+  expect(await finder.content()).not.toContain("985112003456789");
+
+  await owner.getByRole("button", { name: /turn lost mode off/ }).click();
+  await expect(owner.getByRole("heading", { name: "Lost mode is off" })).toBeVisible();
   expect(csp).toEqual([]);
 });
 
