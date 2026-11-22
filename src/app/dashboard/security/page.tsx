@@ -8,8 +8,9 @@ import { TwoFactorSettings } from "./TwoFactorSettings";
 
 export const metadata: Metadata = { title: "Security" };
 
-export default async function SecurityPage() {
+export default async function SecurityPage({ searchParams }: PageProps<"/dashboard/security">) {
   const user = await requireUser("/dashboard/security");
+  const adminNeeds2fa = (await searchParams).admin === "1" && !user.twoFactorEnabled;
   const rows = await getAuth().api.listPasskeys({ headers: await headers() });
   const passkeys: PasskeyItem[] = rows.map((p) => ({
     id: p.id,
@@ -23,6 +24,11 @@ export default async function SecurityPage() {
         <Link href="/dashboard">← Back to your tags</Link>
       </p>
       <h1>Security</h1>
+      {adminNeeds2fa && (
+        <p className="alert error" role="alert">
+          Turn on two-step verification to use the admin area.
+        </p>
+      )}
       <div className="card">
         <TwoFactorSettings enabled={Boolean(user.twoFactorEnabled)} />
       </div>
