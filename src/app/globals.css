@@ -414,3 +414,17 @@ ul.messages li {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.image-upload {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.image-preview {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}

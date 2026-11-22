@@ -14,6 +14,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
+  experimental: {
+    // Photo uploads (src/server/photos.ts allows 8 MB per image) plus multipart overhead.
+    serverActions: { bodySizeLimit: "9mb" },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

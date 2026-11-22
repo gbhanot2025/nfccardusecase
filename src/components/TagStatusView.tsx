@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ProfilePublicPage } from "@/profile-types/modules";
 import { PROFILE_TYPE_INFO, type ProfileType } from "@/profile-types/registry";
 import { createChallenge } from "@/server/altcha";
+import { imageUrl } from "@/server/photos";
 import { sendFinderMessageAction } from "./finder/actions";
 import { FinderMessageForm } from "./finder/FinderMessageForm";
 
@@ -64,6 +65,8 @@ export function TagStatusView({
         data={profile.data}
         lostMode={profile.lostMode}
         vcardUrl={profile.type === "business_card" ? `/q/${publicCode}/vcard` : undefined}
+        photoUrl={imageUrl((profile.data as Record<string, unknown> | null)?.photoKey)}
+        logoUrl={imageUrl((profile.data as Record<string, unknown> | null)?.logoKey)}
       >
         {PROFILE_TYPE_INFO[profile.type].lostItem &&
           (isOwner ? (

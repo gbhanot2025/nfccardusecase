@@ -31,6 +31,9 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 # Argon2's native binary is loaded at runtime; make sure the platform package is present.
 COPY --from=build --chown=node:node /app/node_modules/@node-rs ./node_modules/@node-rs
+# Same for sharp (photo processing) and its libvips platform package.
+COPY --from=build --chown=node:node /app/node_modules/sharp ./node_modules/sharp
+COPY --from=build --chown=node:node /app/node_modules/@img ./node_modules/@img
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

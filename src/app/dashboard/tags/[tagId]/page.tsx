@@ -5,10 +5,13 @@ import { getDb } from "@/lib/db";
 import { requireUser } from "@/lib/require-user";
 import { ProfileEditor } from "@/profile-types/modules";
 import { FORM_FACTOR_LABEL, PROFILE_TYPE_INFO } from "@/profile-types/registry";
+import { IMAGE_SLOTS, imageUrl } from "@/server/photos";
 import { getOwnedProfile } from "@/server/profiles";
 import { listMessagesForProfile } from "@/server/relay";
 import { listScansForProfile } from "@/server/scans";
 import { saveProfileAction, setLostModeAction, setScanAlertsAction } from "./actions";
+import { removeImageAction, uploadImageAction } from "./image-actions";
+import { ImageUpload } from "./ImageUpload";
 
 export const metadata: Metadata = { title: "Edit profile" };
 
@@ -135,6 +138,21 @@ export default async function EditProfilePage({ params }: PageProps<"/dashboard/
           </table>
         )}
       </div>
+
+      {IMAGE_SLOTS[profile.type].length > 0 && (
+        <div className="card">
+          <h2>{IMAGE_SLOTS[profile.type].length > 1 ? "Photo and logo" : "Photo"}</h2>
+          {IMAGE_SLOTS[profile.type].map((slot) => (
+            <ImageUpload
+              key={slot}
+              label={slot === "logoKey" ? "Logo" : "Photo"}
+              currentUrl={imageUrl((profile.data as Record<string, unknown> | null)?.[slot])}
+              upload={uploadImageAction.bind(null, tag.id, slot)}
+              remove={removeImageAction.bind(null, tag.id, slot)}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="card">
         <h2>Profile</h2>

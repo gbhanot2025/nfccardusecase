@@ -32,7 +32,8 @@ export const envSchema = z
     MAIL_FROM: z.string().min(3).default("Tag Platform <no-reply@localhost>"),
     MAIL_OUTBOX_DIR: optionalString,
 
-    // Object storage (used from milestone 4).
+    // Object storage for photos and logos. STORAGE_DIR (a local folder) is for development and tests only.
+    STORAGE_DIR: optionalString,
     S3_ENDPOINT: optionalUrl,
     S3_REGION: z.string().default("us-east-1"),
     S3_BUCKET: optionalString,
@@ -58,6 +59,20 @@ export const envSchema = z
     if (env.NODE_ENV === "production" && !localOnly) {
       if (!env.SMTP_URL) {
         ctx.addIssue({ code: "custom", path: ["SMTP_URL"], message: "SMTP_URL is required in production" });
+      }
+      if (env.STORAGE_DIR) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["STORAGE_DIR"],
+          message: "Use S3 storage in production, not STORAGE_DIR",
+        });
+      }
+      if (!env.S3_ENDPOINT || !env.S3_BUCKET || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["S3_ENDPOINT"],
+          message: "S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY and S3_SECRET_KEY are required in production",
+        });
       }
       if (env.MAIL_OUTBOX_DIR) {
         ctx.addIssue({

@@ -49,3 +49,6 @@ next-env.d.ts
 /playwright-report/
 .mail-outbox-e2e/
 !.env.production.example
+
+# Local object storage (STORAGE_DIR)
+.storage*

@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { type Browser, expect, type Page, test } from "@playwright/test";
+import sharp from "sharp";
 import { enableTotp, latestLinkTo, signUpAndVerify, uniqueEmail, watchCsp } from "./helpers";
 import { randomUid, simulateTap } from "./ntag424-sim";
 
@@ -277,9 +278,36 @@ test("business card: edit, public page and Save contact", async ({ page, browser
   await owner.getByRole("button", { name: "Save", exact: true }).click();
   await expect(owner.getByText("Saved.")).toBeVisible();
 
+  // A photo: a non-image is refused, a real one (with GPS data) is stored without it.
+  await owner.getByLabel("Photo", { exact: true }).setInputFiles({
+    name: "notes.txt",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("definitely not a picture"),
+  });
+  await owner.getByRole("button", { name: "Upload photo" }).click();
+  await expect(owner.getByText("That file isn't an image we can read.")).toBeVisible();
+  const photo = await sharp({ create: { width: 1600, height: 1200, channels: 3, background: "#cc6633" } })
+    .jpeg()
+    .withExif({ IFD3: { GPSLatitudeRef: "N", GPSLatitude: "51/1 30/1 0/1" } })
+    .toBuffer();
+  await owner
+    .getByLabel("Photo", { exact: true })
+    .setInputFiles({ name: "me.jpg", mimeType: "image/jpeg", buffer: photo });
+  await owner.getByRole("button", { name: "Upload photo" }).click();
+  await expect(owner.getByText("Image updated.")).toBeVisible();
+  await expect(owner.getByRole("img", { name: "Current photo" })).toBeVisible();
+
   const visitor = await newVisitor(browser);
   await visitor.goto(`/q/${card.publicCode}`);
   await expect(visitor.getByRole("heading", { name: "Ada Lovelace" })).toBeVisible();
+  const img = visitor.getByRole("img", { name: "Photo of Ada Lovelace" });
+  await expect(img).toBeVisible();
+  const served = await visitor.request.get((await img.getAttribute("src"))!);
+  expect(served.status()).toBe(200);
+  expect(served.headers()["content-type"]).toBe("image/webp");
+  const meta = await sharp(await served.body()).metadata();
+  expect(meta.exif).toBeUndefined();
+  expect(meta.width).toBe(1024);
   await expect(visitor.getByText("Engineer · Analytical Engines")).toBeVisible();
   await expect(visitor.getByText("+44 20 7946 0958")).toBeVisible();
   await expect(visitor.getByText("This is your tag")).toHaveCount(0);
