@@ -48,3 +48,4 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 .mail-outbox-e2e/
+!.env.production.example
