@@ -9,10 +9,13 @@ export function TagStatusView({
   status,
   profileType,
   isOwner,
+  tap = "none",
 }: {
   status: "active" | "disabled";
   profileType: ProfileType | null;
   isOwner: boolean;
+  /** Result of the NFC tap check (only on /t). */
+  tap?: "none" | "verified" | "unverified";
 }) {
   if (status === "disabled") {
     return (
@@ -31,6 +34,17 @@ export function TagStatusView({
   return (
     <main>
       <h1>{profileType ? PROFILE_TYPE_INFO[profileType].label : "Tag"}</h1>
+      {tap === "verified" && (
+        <p className="badge active" data-tap="verified">
+          ✓ Genuine tag
+        </p>
+      )}
+      {tap === "unverified" && (
+        <p className="muted" data-tap="unverified">
+          This link couldn&apos;t be confirmed as a fresh tap from the original tag. If you just tapped a tag, tap it
+          again.
+        </p>
+      )}
       <div className="card">
         <p className="muted">This profile hasn&apos;t been set up yet. Check back soon.</p>
         {isOwner && (

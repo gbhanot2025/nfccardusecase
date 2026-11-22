@@ -158,6 +158,8 @@ export async function getBatch(db: Database, batchId: string) {
       status: tags.status,
       disabledReason: tags.disabledReason,
       claimedAt: tags.claimedAt,
+      uid: tags.uid,
+      lastCounter: tags.lastCounter,
     })
     .from(tags)
     .where(eq(tags.batchId, batchId))
