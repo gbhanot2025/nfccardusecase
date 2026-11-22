@@ -38,3 +38,115 @@ export const FORM_FACTOR_LABEL: Record<FormFactor, string> = {
   keychain: "Keychain",
   wristband: "Wristband",
 };
+
+// ---------------------------------------------------------------------------
+// Milestone 3: data schemas per type.
+//
+// Only schemas and pure helpers are registered here, so this file stays safe to import from Client
+// Components (e.g. a type picker). The React components (PublicPage, Editor) are registered in
+// `./modules.ts`, which is server-only.
+// ---------------------------------------------------------------------------
+
+import type { z } from "zod";
+import {
+  businessCardFromFormData,
+  businessCardSchema,
+  isBusinessCardEmpty,
+  parseBusinessCardData,
+  validateBusinessCardData,
+  type BusinessCardData,
+} from "./business_card/schema";
+import {
+  isLostDeviceEmpty,
+  lostDeviceFromFormData,
+  lostDeviceSchema,
+  parseLostDeviceData,
+  validateLostDeviceData,
+  type LostDeviceData,
+} from "./lost_device/schema";
+import {
+  isLostIdEmpty,
+  lostIdFromFormData,
+  lostIdSchema,
+  parseLostIdData,
+  validateLostIdData,
+  type LostIdData,
+} from "./lost_id/schema";
+import {
+  isLostPetEmpty,
+  lostPetFromFormData,
+  lostPetSchema,
+  parseLostPetData,
+  validateLostPetData,
+  type LostPetData,
+} from "./lost_pet/schema";
+import type { ValidationResult } from "./shared/fields";
+
+/** Parsed `profiles.data` for each type. */
+export interface ProfileDataMap {
+  business_card: BusinessCardData;
+  lost_pet: LostPetData;
+  lost_device: LostDeviceData;
+  lost_id: LostIdData;
+}
+
+export interface ProfileTypeSchema<T> {
+  /** Write schema (strict: unknown keys are rejected). `{}` is valid. */
+  schema: z.ZodType<T>;
+  /** Read helper: never throws; unknown or invalid stored data falls back to "not set". */
+  parse: (raw: unknown) => T;
+  /** Write helper: Zod result with field errors keyed by dotted path. */
+  validate: (raw: unknown) => ValidationResult<T>;
+  /** Maps the type's editor form to the raw object `validate` expects (only known fields). */
+  fromFormData: (form: FormData) => Record<string, unknown>;
+  /** True while the owner hasn't filled anything in (the claim flow stores `{}`). */
+  isEmpty: (data: T) => boolean;
+}
+
+export const PROFILE_TYPE_SCHEMAS: { [K in ProfileType]: ProfileTypeSchema<ProfileDataMap[K]> } = {
+  business_card: {
+    schema: businessCardSchema,
+    parse: parseBusinessCardData,
+    validate: validateBusinessCardData,
+    fromFormData: businessCardFromFormData,
+    isEmpty: isBusinessCardEmpty,
+  },
+  lost_pet: {
+    schema: lostPetSchema,
+    parse: parseLostPetData,
+    validate: validateLostPetData,
+    fromFormData: lostPetFromFormData,
+    isEmpty: isLostPetEmpty,
+  },
+  lost_device: {
+    schema: lostDeviceSchema,
+    parse: parseLostDeviceData,
+    validate: validateLostDeviceData,
+    fromFormData: lostDeviceFromFormData,
+    isEmpty: isLostDeviceEmpty,
+  },
+  lost_id: {
+    schema: lostIdSchema,
+    parse: parseLostIdData,
+    validate: validateLostIdData,
+    fromFormData: lostIdFromFormData,
+    isEmpty: isLostIdEmpty,
+  },
+};
+
+export function isProfileType(value: unknown): value is ProfileType {
+  return typeof value === "string" && (PROFILE_TYPES as readonly string[]).includes(value);
+}
+
+/** Read `profiles.data` for any type; never throws. */
+export function parseProfileDataFor<K extends ProfileType>(type: K, raw: unknown): ProfileDataMap[K] {
+  return PROFILE_TYPE_SCHEMAS[type].parse(raw);
+}
+
+/** Validate input for `profiles.data` of any type before writing it. */
+export function validateProfileDataFor<K extends ProfileType>(
+  type: K,
+  raw: unknown,
+): ValidationResult<ProfileDataMap[K]> {
+  return PROFILE_TYPE_SCHEMAS[type].validate(raw);
+}
