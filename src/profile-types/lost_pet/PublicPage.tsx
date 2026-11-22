@@ -1,13 +1,15 @@
 import { LostItemPage } from "../shared/LostItemPage";
 import type { PublicPageProps } from "../shared/types";
-import type { LostPetData } from "./schema";
+import { toLostPetPublicData, type LostPetData } from "./schema";
 import { formatPhoneInternational } from "../shared/phone";
 
 /**
  * Visitor view of a lost_pet tag. Normal mode shows only the pet's name, photo and breed; lost mode adds
  * the urgent banner, reward, medical notes and vet. Owner contact goes through `children` (the relay).
  */
-export function LostPetPublicPage({ data, lostMode = false, photoUrl, children }: PublicPageProps<LostPetData>) {
+export function LostPetPublicPage({ data: input, lostMode = false, photoUrl, children }: PublicPageProps<LostPetData>) {
+  // Strip private fields (the microchip number) before anything is rendered.
+  const data = toLostPetPublicData(input);
   const name = data.petName ?? "This pet";
   const showVet = lostMode && Boolean(data.vetName || data.vetPhone);
   return (
@@ -20,6 +22,7 @@ export function LostPetPublicPage({ data, lostMode = false, photoUrl, children }
       photoUrl={photoUrl}
       photoAlt={data.petName ? `Photo of ${data.petName}` : "Photo of the pet"}
       reward={data.reward}
+      note={data.microchipped ? "This pet is microchipped. Any vet or animal shelter can scan it for free." : undefined}
       details={
         Boolean(data.breed || (lostMode && data.medicalNotes) || showVet) && (
           <dl className="pp-details">

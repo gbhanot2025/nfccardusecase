@@ -227,6 +227,48 @@ export function SelectField({
   );
 }
 
+export function CheckboxField({
+  label,
+  name,
+  defaultChecked,
+  hint,
+  error,
+}: {
+  label: string;
+  name: string;
+  defaultChecked?: boolean;
+  hint?: string;
+  error?: string;
+}) {
+  const id = useId();
+  const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className="pp-field pp-checkbox">
+      <div className="pp-checkbox-row">
+        <input
+          id={id}
+          type="checkbox"
+          name={name}
+          defaultChecked={defaultChecked}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+        />
+        <label htmlFor={id}>{label}</label>
+      </div>
+      {hint && (
+        <span id={`${id}-hint`} className="pp-hint">
+          {hint}
+        </span>
+      )}
+      {error && (
+        <span id={`${id}-error`} className="pp-field-error">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Rows with stable keys for add/remove; uncontrolled inputs keep their values across re-renders. */
 export function useRows<T>(initial: readonly T[] | undefined, max: number) {
   const [state, setState] = useState(() => {

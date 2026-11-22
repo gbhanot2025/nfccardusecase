@@ -157,6 +157,15 @@ main.pp {
   color: var(--success);
 }
 
+.pp-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 0.92rem;
+}
+
 .pp-actions {
   display: grid;
   gap: 10px;
@@ -253,4 +262,15 @@ main.pp {
 
 .pp-editor [aria-invalid="true"] {
   border-color: var(--danger);
+}
+
+.pp-checkbox-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pp-checkbox-row input {
+  width: 20px;
+  height: 20px;
 }

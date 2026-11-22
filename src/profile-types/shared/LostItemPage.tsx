@@ -15,6 +15,8 @@ interface LostItemPageProps {
   details?: ReactNode;
   /** Shown only in lost mode. */
   reward?: string;
+  /** Short informational note shown in both modes (e.g. "This pet is microchipped"). */
+  note?: string;
   /** "Message owner" / "Share location" actions (milestone 4). */
   children?: ReactNode;
 }
@@ -33,6 +35,7 @@ export function LostItemPage({
   photoAlt,
   details,
   reward,
+  note,
   children,
 }: LostItemPageProps) {
   return (
@@ -48,6 +51,7 @@ export function LostItemPage({
         <h1 className="pp-name">{title}</h1>
         <p className="pp-intro">{intro}</p>
         {details}
+        {note && <p className="pp-note">{note}</p>}
         {lostMode && reward && (
           <p className="pp-reward">
             <span className="pp-reward-label">Reward</span> <span className="pp-text">{reward}</span>

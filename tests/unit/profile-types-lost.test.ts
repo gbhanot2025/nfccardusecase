@@ -22,9 +22,9 @@ const OWNER_KEYS = [
   "ownerAddress",
 ];
 
-/** What `{}` parses to. */
+/** What `{}` parses to: lost_pet has a `microchipped` flag that defaults to false. */
 const lostSchemas = [
-  ["lost_pet", lostPetSchema, parseLostPetData, {}],
+  ["lost_pet", lostPetSchema, parseLostPetData, { microchipped: false }],
   ["lost_device", lostDeviceSchema, parseLostDeviceData, {}],
   ["lost_id", lostIdSchema, parseLostIdData, {}],
 ] as const;
@@ -77,6 +77,8 @@ describe("lost_pet schema", () => {
         vetName: "Riverside Vets",
         vetPhone: "+44 20 7946 0000",
         reward: "£100",
+        microchipped: true,
+        microchipNumber: "985-112 003 456 789",
         photoKey: "pets/abc/biscuit.webp",
       }),
     ).toEqual({
@@ -86,6 +88,8 @@ describe("lost_pet schema", () => {
       vetName: "Riverside Vets",
       vetPhone: "+442079460000",
       reward: "£100",
+      microchipped: true,
+      microchipNumber: "985112003456789",
       photoKey: "pets/abc/biscuit.webp",
     });
   });
@@ -102,7 +106,45 @@ describe("lost_pet schema", () => {
     fd.set("petName", "Biscuit");
     fd.set("vetPhone", "");
     fd.set("ownerPhone", "+14155552671");
-    expect(lostPetSchema.parse(lostPetFromFormData(fd))).toEqual({ petName: "Biscuit" });
+    fd.set("microchipped", "on");
+    fd.set("microchipNumber", "985 112 003 456 789");
+    expect(lostPetSchema.parse(lostPetFromFormData(fd))).toEqual({
+      petName: "Biscuit",
+      microchipped: true,
+      microchipNumber: "985112003456789",
+    });
+    expect(lostPetSchema.parse(lostPetFromFormData(new FormData()))).toEqual({ microchipped: false });
+  });
+
+  it.each([
+    ["985112003456789", "985112003456789"],
+    ["985 112 003 456 789", "985112003456789"],
+    ["985-112-003-456-789", "985112003456789"],
+    ["123456789", "123456789"],
+    ["12-34-56-78-90", "1234567890"],
+    ["  001234567  ", "001234567"],
+  ])("normalises microchip number %j", (input, expected) => {
+    expect(lostPetSchema.parse({ microchipNumber: input }).microchipNumber).toBe(expected);
+  });
+
+  it.each([
+    "12345678",
+    "12345678901",
+    "1234567890123456",
+    "98511200345678",
+    "98511200345678X",
+    "985.112.003.456.789",
+    "+985112003456789",
+    "9851120034\n56789",
+    "x".repeat(30),
+  ])("rejects microchip number %j", (input) => {
+    expect(lostPetSchema.safeParse({ microchipNumber: input }).success).toBe(false);
+  });
+
+  it("treats a blank microchip number as not set and requires a boolean flag", () => {
+    expect(lostPetSchema.parse({ microchipNumber: "  " })).toEqual({ microchipped: false });
+    expect(lostPetSchema.safeParse({ microchipped: "yes" }).success).toBe(false);
+    expect(parseLostPetData({ microchipped: "yes", microchipNumber: "bad" })).toEqual({ microchipped: false });
   });
 
   it("validates the vet phone per country and stores E.164", () => {
@@ -112,7 +154,8 @@ describe("lost_pet schema", () => {
     expect(lostPetSchema.safeParse({ vetPhone: "+1 555 123 4567" }).success).toBe(false);
   });
 
-  it("blocks phone-like digit runs in free text", () => {
+  it("still blocks phone-like digit runs in medical notes and other free text", () => {
+    expect(lostPetSchema.safeParse({ medicalNotes: "Chip 985112003456789" }).success).toBe(false);
     expect(lostPetSchema.safeParse({ breed: "Beagle 0123456" }).success).toBe(false);
   });
 });

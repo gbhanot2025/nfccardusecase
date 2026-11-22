@@ -15,7 +15,28 @@ export const LOST_PET_LIMITS = {
   medicalNotes: 500,
   vetName: 100,
   reward: REWARD_MAX,
+  microchipNumberInput: 24,
 } as const;
+
+/** ISO 11784 chips have 15 digits; older AVID/FECAVA chips 9 or 10. */
+export const MICROCHIP_LENGTHS = [9, 10, 15] as const;
+export const MICROCHIP_MESSAGE = "A microchip number has 9, 10 or 15 digits.";
+
+/**
+ * PRIVATE microchip number: only the owner sees it (in the editor). Spaces and dashes are accepted on
+ * input and removed; digits only, exactly 9, 10 or 15 of them. Public pages only say the pet is
+ * microchipped (a vet or shelter can read the chip themselves).
+ */
+export const microchipNumber = z
+  .string()
+  .trim()
+  .max(LOST_PET_LIMITS.microchipNumberInput, MICROCHIP_MESSAGE)
+  .refine((v) => /^[0-9 \-]+$/.test(v), MICROCHIP_MESSAGE)
+  .transform((v) => v.replace(/[ \-]/g, ""))
+  .refine((v) => (MICROCHIP_LENGTHS as readonly number[]).includes(v.length), MICROCHIP_MESSAGE);
+
+/** Fields that must never reach a public page or any other public output. */
+export const LOST_PET_PRIVATE_FIELDS = ["microchipNumber"] as const;
 
 /**
  * No owner name/email/phone/address fields by design: the finder contacts the owner through the relay.
@@ -29,6 +50,8 @@ export function lostPetShape<P extends z.ZodType<string>>(phone: P) {
     vetName: singleLineText(LOST_PET_LIMITS.vetName),
     vetPhone: optionalField(phone),
     reward: lostText(LOST_PET_LIMITS.reward),
+    microchipped: z.boolean().default(false),
+    microchipNumber: optionalField(microchipNumber),
     photoKey: optionalStorageKey,
   };
 }
@@ -53,5 +76,7 @@ export function lostPetFromFormData(form: FormData): Record<string, unknown> {
     vetName: formString(form, "vetName"),
     vetPhone: formString(form, "vetPhone"),
     reward: formString(form, "reward"),
+    microchipped: form.get("microchipped") === "on",
+    microchipNumber: formString(form, "microchipNumber"),
   };
 }

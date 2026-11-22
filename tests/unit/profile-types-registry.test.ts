@@ -124,7 +124,9 @@ describe("editors", () => {
   });
 
   it("lost editors have labelled fields and no owner contact fields", () => {
-    const pet = renderToStaticMarkup(createElement(LostPetEditor, { action: noopAction, initialData: {} }));
+    const pet = renderToStaticMarkup(
+      createElement(LostPetEditor, { action: noopAction, initialData: { microchipped: false } }),
+    );
     expectLabelled(pet, ["Pet&#x27;s name", "Breed", "Medical notes", "Vet clinic", "Vet phone", "Reward (optional)"]);
     const device = renderToStaticMarkup(createElement(LostDeviceEditor, { action: noopAction, initialData: {} }));
     expectLabelled(device, ["Device nickname", "Return message", "Reward (optional)"]);

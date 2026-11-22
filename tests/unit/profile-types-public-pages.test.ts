@@ -9,6 +9,7 @@ import { LostIdPublicPage } from "@/profile-types/lost_id/PublicPage";
 import { parseLostIdData } from "@/profile-types/lost_id/schema";
 import { LostPetPublicPage } from "@/profile-types/lost_pet/PublicPage";
 import { parseLostPetData } from "@/profile-types/lost_pet/schema";
+import { ProfilePublicPage } from "@/profile-types/modules";
 import { safeImageSrc } from "@/profile-types/shared/ProfileImage";
 
 /**
@@ -126,6 +127,51 @@ describe.each(lostCases)("$type public page", ({ render: renderPage, full, lostO
     );
     expectSafeMarkup(html);
     expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("lost_pet microchip", () => {
+  const CHIP = "985112003456789";
+  const pet = parseLostPetData({
+    petName: "Biscuit",
+    microchipped: true,
+    microchipNumber: CHIP,
+    vetPhone: "+442079460000",
+  });
+
+  it.each([true, false])("never shows the microchip number, only the note (lostMode=%s)", (lostMode) => {
+    const html = render(createElement(LostPetPublicPage, { data: pet, lostMode }, actions));
+    expect(pet.microchipNumber).toBe(CHIP);
+    for (const fragment of [CHIP, "985112", "003456789", "985 112", "985-112"]) {
+      expect(html).not.toContain(fragment);
+    }
+    expect(html).toContain("This pet is microchipped. Any vet or animal shelter can scan it for free.");
+    expectSafeMarkup(html);
+  });
+
+  it("does not leak the number through the dispatching ProfilePublicPage either", () => {
+    const html = render(
+      createElement(ProfilePublicPage, {
+        type: "lost_pet",
+        data: { microchipped: true, microchipNumber: CHIP },
+        lostMode: true,
+      }),
+    );
+    expect(html).not.toContain(CHIP);
+    expect(html).toContain("microchipped");
+  });
+
+  it("shows no microchip note when the pet isn't microchipped", () => {
+    const html = render(
+      createElement(LostPetPublicPage, { data: parseLostPetData({ petName: "Biscuit" }), lostMode: true }),
+    );
+    expect(html).not.toContain("microchipped");
+  });
+
+  it("formats the vet phone internationally in lost mode", () => {
+    const html = render(createElement(LostPetPublicPage, { data: pet, lostMode: true }));
+    expect(html).toContain('href="tel:+442079460000"');
+    expect(html).toContain("+44 20 7946 0000");
   });
 });
 

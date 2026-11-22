@@ -1,6 +1,6 @@
 "use client";
 
-import { EditorForm, TextField, useProfileEditor } from "../shared/editor";
+import { CheckboxField, EditorForm, TextField, useProfileEditor } from "../shared/editor";
 import { PHONE_MAX_INPUT } from "../shared/phone-input";
 import type { EditorProps } from "../shared/types";
 import type { LostPetData } from "./schema";
@@ -55,6 +55,21 @@ export function LostPetEditor({ action, initialData }: EditorProps<LostPetData>)
         maxLength={PHONE_MAX_INPUT}
         hint="Your vet's number, not yours, starting with + and the country code. Only shown in lost mode."
         error={errors.vetPhone}
+      />
+      <CheckboxField
+        label="My pet is microchipped"
+        name="microchipped"
+        defaultChecked={initialData.microchipped}
+        hint="The public page will say the pet is microchipped, so a vet or shelter knows to scan it."
+        error={errors.microchipped}
+      />
+      <TextField
+        label="Microchip number (private)"
+        name="microchipNumber"
+        defaultValue={initialData.microchipNumber}
+        maxLength={LOST_PET_LIMITS.microchipNumberInput}
+        hint="Only you can see this. It is never shown on the public page. 9, 10 or 15 digits."
+        error={errors.microchipNumber}
       />
       <TextField
         label="Reward (optional)"

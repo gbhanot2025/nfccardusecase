@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { parseProfileData, validateWith } from "../shared/fields";
 import { phoneNumber } from "../shared/phone";
-import { lostPetShape } from "./shape";
+import { LOST_PET_PRIVATE_FIELDS, lostPetShape } from "./shape";
 
 export * from "./shape";
 
@@ -27,4 +27,13 @@ export function validateLostPetData(raw: unknown) {
 
 export function isLostPetEmpty(data: LostPetData): boolean {
   return !data.petName && !data.breed && !data.photoKey;
+}
+
+/** What a public page may see: the parsed data without private fields (e.g. the microchip number). */
+export type LostPetPublicData = Omit<LostPetData, (typeof LOST_PET_PRIVATE_FIELDS)[number]>;
+
+export function toLostPetPublicData(data: LostPetData): LostPetPublicData {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- dropped on purpose: private
+  const { microchipNumber, ...rest } = data;
+  return rest;
 }
