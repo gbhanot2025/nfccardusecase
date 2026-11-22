@@ -1,0 +1,246 @@
+/*
+ * Styles for profile public pages and editors. Every class is prefixed `pp-` because global CSS
+ * imported from components is not unloaded on navigation (see Next.js CSS docs).
+ * Mobile-first; uses the colour variables from globals.css.
+ */
+
+/* ---------- Public pages ---------- */
+
+main.pp {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+  display: grid;
+  gap: 16px;
+}
+
+.pp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.pp-empty {
+  text-align: center;
+}
+
+.pp-name {
+  font-size: 1.5rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.pp-subtitle,
+.pp-intro {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* User text keeps its line breaks but is always plain text. */
+.pp-text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.pp-message {
+  margin: 0;
+}
+
+.pp-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.pp-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.pp-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.pp-photo {
+  width: 100%;
+  max-height: 320px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.pp-save {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 1.05rem;
+}
+
+.pp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pp-list li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.pp-list a {
+  overflow-wrap: anywhere;
+}
+
+.pp-list-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.pp-details {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.pp-details dt {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.pp-details dd {
+  margin: 0;
+}
+
+.pp-banner {
+  background: var(--danger);
+  color: #ffffff;
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.pp-banner p {
+  margin: 0;
+}
+
+.pp-banner-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.pp-reward {
+  margin: 0;
+  padding: 10px 12px;
+  border: 2px solid var(--success);
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.pp-reward-label {
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: var(--success);
+}
+
+.pp-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.pp-privacy {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (min-width: 600px) {
+  main.pp {
+    padding-top: 48px;
+  }
+
+  .pp-card {
+    padding: 28px;
+  }
+}
+
+/* ---------- Editors ---------- */
+
+.pp-editor textarea,
+.pp-editor select {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.pp-editor textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.pp-editor textarea:focus-visible,
+.pp-editor select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pp-editor fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.pp-editor legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.pp-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-items: end;
+}
+
+@media (min-width: 520px) {
+  .pp-row {
+    grid-template-columns: 9rem 1fr auto;
+  }
+}
+
+.pp-hint {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.pp-field-error {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--danger);
+}
+
+.pp-editor [aria-invalid="true"] {
+  border-color: var(--danger);
+}
