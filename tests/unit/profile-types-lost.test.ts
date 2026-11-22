@@ -22,23 +22,24 @@ const OWNER_KEYS = [
   "ownerAddress",
 ];
 
+/** What `{}` parses to. */
 const lostSchemas = [
-  ["lost_pet", lostPetSchema, parseLostPetData],
-  ["lost_device", lostDeviceSchema, parseLostDeviceData],
-  ["lost_id", lostIdSchema, parseLostIdData],
+  ["lost_pet", lostPetSchema, parseLostPetData, {}],
+  ["lost_device", lostDeviceSchema, parseLostDeviceData, {}],
+  ["lost_id", lostIdSchema, parseLostIdData, {}],
 ] as const;
 
-describe.each(lostSchemas)("%s schema (shared lost rules)", (_type, schema, parse) => {
+describe.each(lostSchemas)("%s schema (shared lost rules)", (_type, schema, parse, empty) => {
   it("accepts {}", () => {
-    expect(schema.parse({})).toEqual({});
-    expect(parse({})).toEqual({});
+    expect(schema.parse({})).toEqual(empty);
+    expect(parse({})).toEqual(empty);
   });
 
   it("has no owner name/email/phone/address fields", () => {
     for (const key of OWNER_KEYS) {
       expect(Object.keys(schema.shape)).not.toContain(key);
       expect(schema.safeParse({ [key]: "x" }).success, key).toBe(false);
-      expect(parse({ [key]: "x" }), key).toEqual({});
+      expect(parse({ [key]: "x" }), key).toEqual(empty);
     }
   });
 
@@ -52,7 +53,7 @@ describe.each(lostSchemas)("%s schema (shared lost rules)", (_type, schema, pars
   });
 
   it("allows a plain reward", () => {
-    expect(schema.parse({ reward: " $50 reward " })).toEqual({ reward: "$50 reward" });
+    expect(schema.parse({ reward: " $50 reward " })).toEqual({ ...empty, reward: "$50 reward" });
   });
 
   it("rejects an oversized reward", () => {
@@ -100,8 +101,19 @@ describe("lost_pet schema", () => {
     const fd = new FormData();
     fd.set("petName", "Biscuit");
     fd.set("vetPhone", "");
-    fd.set("ownerPhone", "+15551234567");
+    fd.set("ownerPhone", "+14155552671");
     expect(lostPetSchema.parse(lostPetFromFormData(fd))).toEqual({ petName: "Biscuit" });
+  });
+
+  it("validates the vet phone per country and stores E.164", () => {
+    expect(lostPetSchema.parse({ vetPhone: "+1 (415) 555-2671" }).vetPhone).toBe("+14155552671");
+    expect(lostPetSchema.parse({ vetPhone: "0049 30 901820" }).vetPhone).toBe("+4930901820");
+    expect(lostPetSchema.safeParse({ vetPhone: "030 901820" }).success).toBe(false);
+    expect(lostPetSchema.safeParse({ vetPhone: "+1 555 123 4567" }).success).toBe(false);
+  });
+
+  it("blocks phone-like digit runs in free text", () => {
+    expect(lostPetSchema.safeParse({ breed: "Beagle 0123456" }).success).toBe(false);
   });
 });
 

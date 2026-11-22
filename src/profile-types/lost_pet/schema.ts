@@ -1,35 +1,16 @@
+import "server-only";
 import { z } from "zod";
-import {
-  formString,
-  optionalPhoneNumber,
-  optionalStorageKey,
-  parseProfileData,
-  singleLineText,
-  validateWith,
-} from "../shared/fields";
-import { REWARD_MAX, lostMultiLineText, lostText } from "../shared/lost";
+import { parseProfileData, validateWith } from "../shared/fields";
+import { phoneNumber } from "../shared/phone";
+import { lostPetShape } from "./shape";
 
-export const LOST_PET_LIMITS = {
-  petName: 60,
-  breed: 80,
-  medicalNotes: 500,
-  vetName: 100,
-  reward: REWARD_MAX,
-} as const;
+export * from "./shape";
 
 /**
- * No owner name/email/phone/address fields by design: the finder contacts the owner through the relay.
- * `vetPhone` is the vet clinic's number (listed in the spec), not the owner's.
+ * Server authority for lost pet data: the vet phone is validated per country (libphonenumber-js max
+ * metadata) and stored as E.164. Client code imports `./shape.ts` instead.
  */
-const shape = {
-  petName: lostText(LOST_PET_LIMITS.petName),
-  breed: lostText(LOST_PET_LIMITS.breed),
-  medicalNotes: lostMultiLineText(LOST_PET_LIMITS.medicalNotes),
-  vetName: singleLineText(LOST_PET_LIMITS.vetName),
-  vetPhone: optionalPhoneNumber,
-  reward: lostText(LOST_PET_LIMITS.reward),
-  photoKey: optionalStorageKey,
-};
+const shape = lostPetShape(phoneNumber);
 
 /** Write schema: unknown keys (e.g. `ownerPhone`) are rejected. `{}` is valid ("not set up yet"). */
 export const lostPetSchema = z.strictObject(shape);
@@ -46,20 +27,4 @@ export function validateLostPetData(raw: unknown) {
 
 export function isLostPetEmpty(data: LostPetData): boolean {
   return !data.petName && !data.breed && !data.photoKey;
-}
-
-/**
- * Maps the editor's form fields to the raw object the schema validates. Keeps only known keys.
- * Image keys are never read from the form (a client could point them at someone else's upload):
- * the upload action (milestone 4) sets them, and the save action keeps the stored value.
- */
-export function lostPetFromFormData(form: FormData): Record<string, unknown> {
-  return {
-    petName: formString(form, "petName"),
-    breed: formString(form, "breed"),
-    medicalNotes: formString(form, "medicalNotes"),
-    vetName: formString(form, "vetName"),
-    vetPhone: formString(form, "vetPhone"),
-    reward: formString(form, "reward"),
-  };
 }

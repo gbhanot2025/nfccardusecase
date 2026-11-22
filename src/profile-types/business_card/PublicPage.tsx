@@ -1,4 +1,5 @@
 import "../profile-pages.css";
+import { formatPhoneInternational } from "../shared/phone";
 import { ProfileImage } from "../shared/ProfileImage";
 import type { PublicPageProps } from "../shared/types";
 import {
@@ -68,7 +69,7 @@ export function BusinessCardPublicPage({ data, photoUrl, logoUrl, vcardUrl }: Pu
             {data.phones?.map((p, i) => (
               <li key={`phone-${i}`}>
                 <span className="pp-list-label">{PHONE_LABEL_TEXT[p.label]}</span>
-                <a href={`tel:${p.number}`}>{p.number}</a>
+                <a href={`tel:${p.number}`}>{formatPhoneInternational(p.number)}</a>
               </li>
             ))}
             {data.emails?.map((e, i) => (

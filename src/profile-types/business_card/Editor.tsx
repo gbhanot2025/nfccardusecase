@@ -1,7 +1,8 @@
 "use client";
 
 import { EditorForm, SelectField, TextField, useProfileEditor, useRows } from "../shared/editor";
-import { EMAIL_MAX, PHONE_MAX_INPUT, URL_MAX } from "../shared/fields";
+import { EMAIL_MAX, URL_MAX } from "../shared/fields";
+import { PHONE_MAX_INPUT } from "../shared/phone-input";
 import type { EditorProps } from "../shared/types";
 import {
   BUSINESS_CARD_LIMITS,
@@ -12,9 +13,9 @@ import {
   SOCIAL_NETWORKS,
   SOCIAL_NETWORK_IDS,
   businessCardFromFormData,
-  validateBusinessCardData,
-  type BusinessCardData,
-} from "./schema";
+  validateBusinessCardForm,
+} from "./shape";
+import type { BusinessCardData } from "./schema";
 
 const LISTS = [
   { prefix: "phones", required: "number" },
@@ -31,7 +32,7 @@ export function BusinessCardEditor({ action, initialData }: EditorProps<Business
   const { errors, ...form } = useProfileEditor({
     action,
     fromFormData: businessCardFromFormData,
-    validate: validateBusinessCardData,
+    validate: validateBusinessCardForm,
     lists: LISTS,
   });
   const phones = useRows(initialData.phones, BUSINESS_CARD_LIMITS.phones);
@@ -92,6 +93,7 @@ export function BusinessCardEditor({ action, initialData }: EditorProps<Business
               defaultValue={row.value?.number}
               maxLength={PHONE_MAX_INPUT}
               placeholder="+44 20 7946 0958"
+              hint={i === 0 ? "Include the country code, starting with +." : undefined}
               error={errors[`phones.${i}.number`]}
             />
             <button type="button" className="secondary" onClick={() => phones.remove(row.key)}>

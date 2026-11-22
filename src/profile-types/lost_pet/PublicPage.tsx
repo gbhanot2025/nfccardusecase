@@ -1,6 +1,7 @@
 import { LostItemPage } from "../shared/LostItemPage";
 import type { PublicPageProps } from "../shared/types";
 import type { LostPetData } from "./schema";
+import { formatPhoneInternational } from "../shared/phone";
 
 /**
  * Visitor view of a lost_pet tag. Normal mode shows only the pet's name, photo and breed; lost mode adds
@@ -40,7 +41,7 @@ export function LostPetPublicPage({ data, lostMode = false, photoUrl, children }
                 <dd>
                   {data.vetName && <span className="pp-text">{data.vetName}</span>}
                   {data.vetName && data.vetPhone && " · "}
-                  {data.vetPhone && <a href={`tel:${data.vetPhone}`}>{data.vetPhone}</a>}
+                  {data.vetPhone && <a href={`tel:${data.vetPhone}`}>{formatPhoneInternational(data.vetPhone)}</a>}
                 </dd>
               </div>
             )}

@@ -9,7 +9,6 @@ import {
   multiLineText,
   optionalStorageKey,
   parseProfileData,
-  phoneNumber,
   singleLineText,
 } from "@/profile-types/shared/fields";
 
@@ -36,22 +35,6 @@ describe("shared profile fields", () => {
     expect(f.safeParse("x\n".repeat(25)).success).toBe(false);
     expect(f.safeParse("a\u0000b").success).toBe(false);
   });
-
-  it.each([
-    ["+44 20 7946 0958", "+442079460958"],
-    ["(555) 123-4567", "5551234567"],
-    ["0044 20 7946 0958", "+442079460958"],
-    ["+1.555.123.4567", "+15551234567"],
-  ])("normalises phone %j", (input, expected) => {
-    expect(phoneNumber.parse(input)).toBe(expected);
-  });
-
-  it.each(["12345", "+1234567890123456", "call me", "+44 20 7946 0958 ext 2", "555-CALL-NOW", "+1\n5551234567"])(
-    "rejects phone %j",
-    (input) => {
-      expect(phoneNumber.safeParse(input).success).toBe(false);
-    },
-  );
 
   it("normalises emails and rejects invalid ones", () => {
     expect(emailAddress.parse("  Jane.Doe@Example.COM ")).toBe("jane.doe@example.com");
@@ -102,7 +85,7 @@ describe("shared profile fields", () => {
   });
 
   it("parseProfileData never throws and salvages valid fields and list items", () => {
-    const shape = { a: singleLineText(5), b: list(z.strictObject({ n: phoneNumber }), 2) };
+    const shape = { a: singleLineText(5), b: list(z.strictObject({ n: z.string().regex(/^\+\d+$/) }), 2) };
     expect(parseProfileData(shape, null)).toEqual({});
     expect(parseProfileData(shape, "junk")).toEqual({});
     expect(parseProfileData(shape, [1, 2])).toEqual({});

@@ -1,3 +1,13 @@
+/**
+ * Server-side registration of the profile types listed in `./registry.ts`: their data schemas
+ * (`PROFILE_TYPE_SCHEMAS`) and components (`PROFILE_TYPE_MODULES`).
+ *
+ * Why not in registry.ts: registry.ts is also imported from Client Components (type pickers in the
+ * claim flow/dashboard). The server schemas pull in libphonenumber-js "max" metadata and this map pulls
+ * in every PublicPage/Editor and their CSS; none of that may end up in client bundles. `server-only`
+ * turns such an import into a build error. Editors validate on the client with each type's light
+ * `shape.ts` schema instead.
+ */
 import "server-only";
 import { createElement, type ComponentType, type ReactNode } from "react";
 import { BusinessCardEditor } from "./business_card/Editor";
@@ -8,20 +18,115 @@ import { LostIdEditor } from "./lost_id/Editor";
 import { LostIdPublicPage } from "./lost_id/PublicPage";
 import { LostPetEditor } from "./lost_pet/Editor";
 import { LostPetPublicPage } from "./lost_pet/PublicPage";
+import { PROFILE_TYPES, PROFILE_TYPE_INFO, type ProfileType } from "./registry";
+import type { z } from "zod";
 import {
-  PROFILE_TYPE_INFO,
-  PROFILE_TYPE_SCHEMAS,
-  type ProfileDataMap,
-  type ProfileType,
-  type ProfileTypeSchema,
-} from "./registry";
+  businessCardFromFormData,
+  businessCardSchema,
+  isBusinessCardEmpty,
+  parseBusinessCardData,
+  validateBusinessCardData,
+  type BusinessCardData,
+} from "./business_card/schema";
+import {
+  isLostDeviceEmpty,
+  lostDeviceFromFormData,
+  lostDeviceSchema,
+  parseLostDeviceData,
+  validateLostDeviceData,
+  type LostDeviceData,
+} from "./lost_device/schema";
+import {
+  isLostIdEmpty,
+  lostIdFromFormData,
+  lostIdSchema,
+  parseLostIdData,
+  validateLostIdData,
+  type LostIdData,
+} from "./lost_id/schema";
+import {
+  isLostPetEmpty,
+  lostPetFromFormData,
+  lostPetSchema,
+  parseLostPetData,
+  validateLostPetData,
+  type LostPetData,
+} from "./lost_pet/schema";
+import type { ValidationResult } from "./shared/fields";
 import type { EditorAction, EditorProps, PublicPageProps } from "./shared/types";
+
+/** Parsed `profiles.data` for each type. */
+export interface ProfileDataMap {
+  business_card: BusinessCardData;
+  lost_pet: LostPetData;
+  lost_device: LostDeviceData;
+  lost_id: LostIdData;
+}
+
+export interface ProfileTypeSchema<T> {
+  /** Write schema (strict: unknown keys are rejected). `{}` is valid. */
+  schema: z.ZodType<T>;
+  /** Read helper: never throws; unknown or invalid stored data falls back to "not set". */
+  parse: (raw: unknown) => T;
+  /** Write helper: Zod result with field errors keyed by dotted path. */
+  validate: (raw: unknown) => ValidationResult<T>;
+  /** Maps the type's editor form to the raw object `validate` expects (only known fields). */
+  fromFormData: (form: FormData) => Record<string, unknown>;
+  /** True while the owner hasn't filled anything in (the claim flow stores `{}`). */
+  isEmpty: (data: T) => boolean;
+}
+
+export const PROFILE_TYPE_SCHEMAS: { [K in ProfileType]: ProfileTypeSchema<ProfileDataMap[K]> } = {
+  business_card: {
+    schema: businessCardSchema,
+    parse: parseBusinessCardData,
+    validate: validateBusinessCardData,
+    fromFormData: businessCardFromFormData,
+    isEmpty: isBusinessCardEmpty,
+  },
+  lost_pet: {
+    schema: lostPetSchema,
+    parse: parseLostPetData,
+    validate: validateLostPetData,
+    fromFormData: lostPetFromFormData,
+    isEmpty: isLostPetEmpty,
+  },
+  lost_device: {
+    schema: lostDeviceSchema,
+    parse: parseLostDeviceData,
+    validate: validateLostDeviceData,
+    fromFormData: lostDeviceFromFormData,
+    isEmpty: isLostDeviceEmpty,
+  },
+  lost_id: {
+    schema: lostIdSchema,
+    parse: parseLostIdData,
+    validate: validateLostIdData,
+    fromFormData: lostIdFromFormData,
+    isEmpty: isLostIdEmpty,
+  },
+};
+
+export function isProfileType(value: unknown): value is ProfileType {
+  return typeof value === "string" && (PROFILE_TYPES as readonly string[]).includes(value);
+}
+
+/** Read `profiles.data` for any type; never throws. */
+export function parseProfileDataFor<K extends ProfileType>(type: K, raw: unknown): ProfileDataMap[K] {
+  return PROFILE_TYPE_SCHEMAS[type].parse(raw);
+}
+
+/** Validate input for `profiles.data` of any type before writing it. */
+export function validateProfileDataFor<K extends ProfileType>(
+  type: K,
+  raw: unknown,
+): ValidationResult<ProfileDataMap[K]> {
+  return PROFILE_TYPE_SCHEMAS[type].validate(raw);
+}
 
 /**
  * Profile type → schema helpers + React components, for route code (`/t/{id}`, `/q/{code}`, the
- * dashboard editor). Lives apart from `registry.ts` on purpose: registry.ts is imported from Client
- * Components too (type pickers), and pulling every PublicPage/Editor and their CSS into those bundles
- * would be wasteful; `server-only` makes that mistake a build error here.
+ * dashboard editor).
  */
 export interface ProfileTypeModule<K extends ProfileType> extends ProfileTypeSchema<ProfileDataMap[K]> {
   type: K;

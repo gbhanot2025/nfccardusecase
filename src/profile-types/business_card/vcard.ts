@@ -1,3 +1,4 @@
+import { formatPhoneInternational } from "../shared/phone";
 import { SOCIAL_NETWORKS, type BusinessCardData } from "./schema";
 
 /**
@@ -6,6 +7,7 @@ import { SOCIAL_NETWORKS, type BusinessCardData } from "./schema";
  * - Lines end with CRLF and are folded at 75 octets (UTF-8 aware: a multi-byte character is never split).
  * - Text values escape `\`, `,`, `;` and line breaks; every other control character is removed, so a
  *   value can never start a new property (no "newline injection").
+ * - Phone numbers are stored as E.164 and written in international format ("+44 20 7946 0958").
  * - Property names and parameters come only from constants/enums, never from user data.
  * - The photo is embedded as base64 when the caller passes its bytes (fetching from storage is the
  *   route's job).
@@ -123,7 +125,7 @@ export function buildVCard(data: BusinessCardData, options: BuildVCardOptions = 
   text("TITLE", data.title);
 
   for (const phone of data.phones ?? []) {
-    lines.push(`TEL;TYPE=${PHONE_TYPE[phone.label] ?? "VOICE"}:${escapeUri(phone.number)}`);
+    lines.push(`TEL;TYPE=${PHONE_TYPE[phone.label] ?? "VOICE"}:${escapeText(formatPhoneInternational(phone.number))}`);
   }
   for (const email of data.emails ?? []) {
     lines.push(`EMAIL;TYPE=${EMAIL_TYPE[email.label] ?? "INTERNET"}:${escapeText(email.address)}`);

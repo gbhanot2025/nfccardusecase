@@ -135,7 +135,7 @@ describe("business_card public page", () => {
     title: "Head of Product",
     company: "Acme",
     bio: "Hello\nWorld",
-    phones: [{ label: "mobile", number: "+15551234567" }],
+    phones: [{ label: "mobile", number: "+14155552671" }],
     emails: [{ label: "work", address: "jane@acme.example" }],
     website: "https://jane.example",
     companyUrl: "https://acme.example",
@@ -154,7 +154,8 @@ describe("business_card public page", () => {
     for (const text of [
       "Jane Doe",
       "Head of Product · Acme",
-      "tel:+15551234567",
+      "tel:+14155552671",
+      "+1 415 555 2671",
       "mailto:jane@acme.example",
       'href="https://jane.example/"',
       'href="https://www.linkedin.com/in/jane"',

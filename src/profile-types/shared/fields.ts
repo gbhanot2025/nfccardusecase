@@ -8,7 +8,7 @@ import { z } from "zod";
  * - trimmed and length-limited,
  * - no control characters, Unicode line/paragraph separators or bidi overrides
  *   (single-line fields also reject line breaks, so values are safe for vCard and email headers),
- * - URLs are https-only, emails/phones are normalised.
+ * - URLs are https-only, emails are normalised (phones: see phone.ts / phone-input.ts).
  * Values are always rendered as plain text by React, never as HTML.
  */
 
@@ -59,21 +59,10 @@ export function multiLineText(max: number) {
     .optional();
 }
 
-export const PHONE_MAX_INPUT = 32;
-
-/**
- * Normalises a phone number to `+` and digits only ("+44 (0)20-7946 0958" is rejected for the "(0)",
- * "+44 20 7946 0958" becomes "+442079460958"). A leading "00" becomes "+". 6–15 digits (E.164 max).
- * No libphonenumber: we don't validate per-country plans, only shape.
- */
-export const phoneNumber = z
-  .string()
-  .trim()
-  .max(PHONE_MAX_INPUT, "Enter a valid phone number.")
-  .transform((v) => v.replace(/[ \u00a0().-]/g, "").replace(/^00/, "+"))
-  .refine((v) => /^\+?[0-9]{6,15}$/.test(v), "Enter a valid phone number, for example +44 20 7946 0958.");
-
-export const optionalPhoneNumber = z.preprocess(blankToUndefined, phoneNumber.optional()).optional();
+/** Makes a field optional; blank strings and null mean "not set". */
+export function optionalField<T extends z.ZodType>(schema: T) {
+  return z.preprocess(blankToUndefined, schema.optional()).optional();
+}
 
 export const EMAIL_MAX = 254;
 

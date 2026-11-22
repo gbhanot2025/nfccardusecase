@@ -51,8 +51,10 @@ describe("business_card schema", () => {
     ["newline in name", { name: "Jane\r\nEMAIL:evil@example.com" }],
     ["http website", { website: "http://jane.example" }],
     ["javascript website", { website: "javascript:alert(document.cookie)" }],
-    ["too many phones", { phones: Array.from({ length: 4 }, () => ({ number: "+15551234567" })) }],
-    ["invalid phone label", { phones: [{ label: "<b>", number: "+15551234567" }] }],
+    ["too many phones", { phones: Array.from({ length: 4 }, () => ({ number: "+14155552671" })) }],
+    ["invalid phone label", { phones: [{ label: "<b>", number: "+14155552671" }] }],
+    ["national phone number", { phones: [{ number: "020 7946 0958" }] }],
+    ["phone that does not exist", { phones: [{ number: "+1 555 123 4567" }] }],
     ["invalid email", { emails: [{ address: "not-an-email" }] }],
     ["unknown network", { socials: [{ network: "myspace", url: "https://myspace.com/jane" }] }],
     ["social URL for another host", { socials: [{ network: "linkedin", url: "https://evil.example/in/jane" }] }],
@@ -85,16 +87,16 @@ describe("business_card schema", () => {
       parseBusinessCardData({
         name: "Jane",
         website: "javascript:alert(1)",
-        phones: [{ number: "+15551234567" }, { number: "nope" }],
+        phones: [{ number: "+14155552671" }, { number: "nope" }],
       }),
-    ).toEqual({ name: "Jane", phones: [{ label: "mobile", number: "+15551234567" }] });
+    ).toEqual({ name: "Jane", phones: [{ label: "mobile", number: "+14155552671" }] });
   });
 
   it("maps form data, skipping empty rows", () => {
     const fd = new FormData();
     fd.set("name", "Jane");
     fd.set("phones.0.label", "work");
-    fd.set("phones.0.number", "+1 555 123 4567");
+    fd.set("phones.0.number", "+1 415 555 2671");
     fd.set("phones.1.label", "mobile");
     fd.set("phones.1.number", "");
     fd.set("socials.0.network", "x");
@@ -105,7 +107,7 @@ describe("business_card schema", () => {
       success: true,
       data: {
         name: "Jane",
-        phones: [{ label: "work", number: "+15551234567" }],
+        phones: [{ label: "work", number: "+14155552671" }],
         emails: [],
         socials: [{ network: "x", url: "https://x.com/jane" }],
       },

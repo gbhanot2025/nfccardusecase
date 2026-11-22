@@ -5,14 +5,18 @@ import { BusinessCardEditor } from "@/profile-types/business_card/Editor";
 import { LostDeviceEditor } from "@/profile-types/lost_device/Editor";
 import { LostIdEditor } from "@/profile-types/lost_id/Editor";
 import { LostPetEditor } from "@/profile-types/lost_pet/Editor";
-import { PROFILE_TYPE_MODULES, ProfileEditor, ProfilePublicPage } from "@/profile-types/modules";
 import {
-  PROFILE_TYPES,
+  PROFILE_TYPE_MODULES,
   PROFILE_TYPE_SCHEMAS,
+  ProfileEditor,
+  ProfilePublicPage,
   isProfileType,
   parseProfileDataFor,
   validateProfileDataFor,
-} from "@/profile-types/registry";
+  type ProfileDataMap,
+  type ProfileTypeSchema,
+} from "@/profile-types/modules";
+import { PROFILE_TYPES, type ProfileType } from "@/profile-types/registry";
 import type { EditorAction } from "@/profile-types/shared/types";
 
 const noopAction: EditorAction = async () => ({ status: "saved" });
@@ -28,11 +32,16 @@ describe("profile type registry", () => {
     }
   });
 
+  function isEmptyAfterParse<K extends ProfileType>(type: K, raw: unknown): boolean {
+    const s: ProfileTypeSchema<ProfileDataMap[K]> = PROFILE_TYPE_SCHEMAS[type];
+    return s.isEmpty(parseProfileDataFor(type, raw));
+  }
+
   it.each(PROFILE_TYPES)("%s accepts {} and reports it as empty", (type) => {
     const s = PROFILE_TYPE_SCHEMAS[type];
     expect(s.schema.safeParse({}).success).toBe(true);
     expect(validateProfileDataFor(type, {}).success).toBe(true);
-    expect(s.isEmpty(parseProfileDataFor(type, {}))).toBe(true);
+    expect(isEmptyAfterParse(type, {})).toBe(true);
     expect(s.fromFormData(new FormData())).toBeTypeOf("object");
     expect(validateProfileDataFor(type, s.fromFormData(new FormData())).success).toBe(true);
   });
@@ -87,7 +96,7 @@ describe("editors", () => {
         action: noopAction,
         initialData: {
           name: "Jane <b>Doe</b>",
-          phones: [{ label: "work", number: "+15551234567" }],
+          phones: [{ label: "work", number: "+14155552671" }],
           emails: [{ label: "work", address: "jane@acme.example" }],
           socials: [{ network: "github", url: "https://github.com/jane" }],
         },

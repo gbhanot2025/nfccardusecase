@@ -1,8 +1,10 @@
 "use client";
 
 import { EditorForm, TextField, useProfileEditor } from "../shared/editor";
+import { PHONE_MAX_INPUT } from "../shared/phone-input";
 import type { EditorProps } from "../shared/types";
-import { LOST_PET_LIMITS, lostPetFromFormData, validateLostPetData, type LostPetData } from "./schema";
+import type { LostPetData } from "./schema";
+import { LOST_PET_LIMITS, lostPetFromFormData, validateLostPetForm } from "./shape";
 
 const PRIVACY_HINT = "Shown to whoever finds your pet. Don't add your own phone number or email.";
 
@@ -11,7 +13,7 @@ export function LostPetEditor({ action, initialData }: EditorProps<LostPetData>)
   const { errors, ...form } = useProfileEditor({
     action,
     fromFormData: lostPetFromFormData,
-    validate: validateLostPetData,
+    validate: validateLostPetForm,
   });
   return (
     <EditorForm {...form}>
@@ -50,8 +52,8 @@ export function LostPetEditor({ action, initialData }: EditorProps<LostPetData>)
         name="vetPhone"
         kind="tel"
         defaultValue={initialData.vetPhone}
-        maxLength={32}
-        hint="Your vet's number, not yours. Only shown in lost mode."
+        maxLength={PHONE_MAX_INPUT}
+        hint="Your vet's number, not yours, starting with + and the country code. Only shown in lost mode."
         error={errors.vetPhone}
       />
       <TextField
