@@ -28,6 +28,8 @@ export default defineConfig({
       MAIL_OUTBOX_DIR: ".mail-outbox-e2e",
       // Tests sign up and log in repeatedly from one IP.
       AUTH_RATE_LIMIT: "off",
+      // Stands in for OpenBao so tests can simulate genuine NTAG 424 taps (tests/e2e/ntag424-sim.ts).
+      NTAG424_TEST_MASTER_KEY: "000102030405060708090A0B0C0D0E0F",
     },
   },
 });
