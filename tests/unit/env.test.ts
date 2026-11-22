@@ -16,6 +16,10 @@ const prod = {
   SMTP_URL: "smtp://user:pass@smtp.example.com:587",
   OPENBAO_ADDR: "http://openbao:8200",
   OPENBAO_TOKEN: "s.token",
+  S3_ENDPOINT: "http://seaweedfs:8333",
+  S3_BUCKET: "tagplatform",
+  S3_ACCESS_KEY: "key",
+  S3_SECRET_KEY: "secret",
 };
 
 describe("environment validation", () => {
@@ -54,6 +58,12 @@ describe("environment validation", () => {
     expect(() => parseEnv({ ...prod, OPENBAO_ADDR: "http://vault.example.com:8200" })).toThrow(/https/);
     expect(() => parseEnv({ ...prod, OPENBAO_ADDR: "https://vault.example.com" })).not.toThrow();
     expect(() => parseEnv(prod)).not.toThrow();
+  });
+
+  it("requires S3 storage in production and refuses a local storage folder", () => {
+    expect(() => parseEnv({ ...prod, S3_BUCKET: undefined })).toThrow(/S3_BUCKET/);
+    expect(() => parseEnv({ ...prod, STORAGE_DIR: "/tmp/storage" })).toThrow(/STORAGE_DIR/);
+    expect(parseEnv({ ...base, STORAGE_DIR: "./.storage" }).STORAGE_DIR).toBe("./.storage");
   });
 
   it("never allows the NTAG 424 test master key in a real deployment", () => {
