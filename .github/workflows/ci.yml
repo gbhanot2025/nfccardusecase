@@ -90,3 +90,27 @@ jobs:
           name: playwright-traces
           path: test-results/
           retention-days: 7
+
+  encoder:
+    name: Encoder (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: encoder
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: encoder/pyproject.toml
+
+      # pyscard (the "reader" extra) is only needed with real hardware; tests use a simulated tag.
+      - name: Install encoder and test dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Unit tests (NIST / NXP vectors, simulated tag)
+        run: pytest

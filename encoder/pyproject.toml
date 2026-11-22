@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ntag424-encoder"
+version = "0.1.0"
+description = "Encode NTAG 424 DNA tags (SUN/SDM, AN10922-diversified keys) for the NFC tag platform"
+requires-python = ">=3.11"
+dependencies = ["pycryptodome>=3.20"]
+
+[project.optional-dependencies]
+# pyscard needs the PC/SC library (pcsclite on Linux); kept optional so tests run anywhere.
+reader = ["pyscard>=2.0"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+ntag424-encode = "ntag424_encoder.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+addopts = "-ra -p no:cacheprovider"
