@@ -33,7 +33,16 @@ export default async function TagPage({ params, searchParams }: PageProps<"/t/[t
   const isOwner = Boolean(session && tag.ownerId === session.user.id);
 
   if (tag.status !== "unclaimed") {
-    return <TagStatusView status={tag.status} profileType={profile?.type ?? null} isOwner={isOwner} tap={tap.kind} />;
+    return (
+      <TagStatusView
+        status={tag.status}
+        profile={profile}
+        publicCode={tag.publicCode}
+        tagId={tag.id}
+        isOwner={isOwner}
+        tap={tap.kind}
+      />
+    );
   }
 
   const here = `/t/${tag.id}`;

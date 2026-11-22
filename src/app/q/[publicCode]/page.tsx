@@ -32,5 +32,7 @@ export default async function QrPage({ params }: PageProps<"/q/[publicCode]">) {
 
   const session = await getSession();
   const isOwner = Boolean(session && tag.ownerId === session.user.id);
-  return <TagStatusView status={tag.status} profileType={profile?.type ?? null} isOwner={isOwner} />;
+  return (
+    <TagStatusView status={tag.status} profile={profile} publicCode={tag.publicCode} tagId={tag.id} isOwner={isOwner} />
+  );
 }
