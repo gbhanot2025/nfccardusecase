@@ -13,12 +13,17 @@ async function sha256Hex(text: string): Promise<string> {
 
 /** Find the number behind the challenge (ALTCHA proof of work) and encode the payload the server expects. */
 async function solve(c: Challenge): Promise<string | null> {
-  for (let n = 0; n <= c.maxnumber; n++) {
-    if ((await sha256Hex(c.salt + n)) === c.challenge) {
+  // Hash in batches: one await per batch instead of per number is several times faster on phones.
+  const BATCH = 500;
+  for (let start = 0; start <= c.maxnumber; start += BATCH) {
+    const numbers = Array.from({ length: Math.min(BATCH, c.maxnumber - start + 1) }, (_, i) => start + i);
+    const hashes = await Promise.all(numbers.map((n) => sha256Hex(c.salt + n)));
+    const found = hashes.indexOf(c.challenge);
+    if (found !== -1) {
       const payload = {
         algorithm: c.algorithm,
         challenge: c.challenge,
-        number: n,
+        number: numbers[found],
         salt: c.salt,
         signature: c.signature,
       };
