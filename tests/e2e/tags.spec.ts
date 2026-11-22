@@ -375,6 +375,31 @@ test("finder messages the owner with their location; the owner gets an email and
   expect(csp).toEqual([]);
 });
 
+test("scans of a lost item alert the owner and show in the history; the owner's own visits don't count", async ({
+  page,
+  browser,
+}) => {
+  await becomeAdmin(page);
+  const { labels } = await createBatch(page, 1);
+  const ownerEmail = uniqueEmail("scanowner");
+  const owner = await customerWithTag(browser, labels[0], /Lost device/, ownerEmail);
+
+  await owner.goto(`/q/${labels[0].publicCode}`);
+  await owner.goto(`/dashboard/tags/${labels[0].tagId}`);
+  await expect(owner.getByText("No scans yet.")).toBeVisible();
+
+  const visitor = await newVisitor(browser);
+  await visitor.goto(`/q/${labels[0].publicCode}`);
+  await expect(visitor.getByRole("heading", { name: "Please return this device" })).toBeVisible();
+
+  expect(await latestLinkTo(ownerEmail, /tag was just scanned/)).toMatch(/\/dashboard$/);
+  await owner.reload();
+  await expect(owner.getByRole("table", { name: "Recent scans" })).toContainText("QR code");
+  await expect(owner.getByText(/Scan alerts by email are/)).toContainText("on");
+  await owner.getByRole("button", { name: "Turn scan alerts off" }).click();
+  await expect(owner.getByRole("button", { name: "Turn scan alerts on" })).toBeVisible();
+});
+
 test("unknown tags and codes are a plain 404", async ({ page }) => {
   for (const path of ["/t/0000000000000000", "/t/not-a-tag", "/q/ZZZZZZZZZZ", "/q/zz"]) {
     const response = await page.goto(path);
