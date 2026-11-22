@@ -23,6 +23,18 @@ export type CreateBatchInput = z.infer<typeof createBatchInput>;
 /** A tag with its plaintext claim code. Exists only in memory, returned once to the admin who created it. */
 export type IssuedTag = { tagId: string; publicCode: string; claimCode: string };
 
+/**
+ * Argon2 runs on libuv's small thread pool (~19 MiB each); hashing a whole batch at once would make every
+ * claim and file operation wait behind it. A few at a time keeps the server responsive.
+ */
+async function hashAll(codes: string[], concurrency = 4): Promise<string[]> {
+  const out: string[] = [];
+  for (let i = 0; i < codes.length; i += concurrency) {
+    out.push(...(await Promise.all(codes.slice(i, i + concurrency).map((c) => hash(c)))));
+  }
+  return out;
+}
+
 function isUniqueViolation(err: unknown): boolean {
   const e = err as { code?: string; cause?: { code?: string } };
   return (e.cause?.code ?? e.code) === "23505";
@@ -41,7 +53,7 @@ export async function createBatch(db: Database, input: CreateBatchInput, adminId
       publicCode: newPublicCode(),
       claimCode: newClaimCode(),
     }));
-    const hashes = await Promise.all(issued.map((t) => hash(t.claimCode)));
+    const hashes = await hashAll(issued.map((t) => t.claimCode));
 
     try {
       await db.transaction(async (tx) => {
@@ -89,29 +101,28 @@ export async function createBatch(db: Database, input: CreateBatchInput, adminId
  * For when the printed codes were lost before shipping. Claimed or disabled tags are untouched.
  */
 export async function reissueClaimCodes(db: Database, batchId: string, adminId: string) {
-  return db.transaction(async (tx) => {
-    const [batch] = await tx.select().from(tagBatches).where(eq(tagBatches.id, batchId));
-    if (!batch) return null;
+  const [batch] = await db.select().from(tagBatches).where(eq(tagBatches.id, batchId));
+  if (!batch) return null;
 
-    const unclaimed = await tx
-      .select({ id: tags.id, publicCode: tags.publicCode })
-      .from(tags)
-      .where(and(eq(tags.batchId, batchId), eq(tags.status, "unclaimed")))
-      .orderBy(asc(tags.createdAt), asc(tags.id))
-      .for("update");
+  // Hash before taking any locks: Argon2 is slow, and claims on these tags shouldn't wait for it.
+  const candidates = await db
+    .select({ id: tags.id, publicCode: tags.publicCode })
+    .from(tags)
+    .where(and(eq(tags.batchId, batchId), eq(tags.status, "unclaimed")))
+    .orderBy(asc(tags.createdAt), asc(tags.id));
+  const prepared = candidates.map((t) => ({ tagId: t.id, publicCode: t.publicCode, claimCode: newClaimCode() }));
+  const hashes = await hashAll(prepared.map((t) => t.claimCode));
 
-    const issued: IssuedTag[] = unclaimed.map((t) => ({
-      tagId: t.id,
-      publicCode: t.publicCode,
-      claimCode: newClaimCode(),
-    }));
-    const hashes = await Promise.all(issued.map((t) => hash(t.claimCode)));
-
-    for (const [i, t] of issued.entries()) {
-      await tx
+  const issued: IssuedTag[] = [];
+  await db.transaction(async (tx) => {
+    for (const [i, t] of prepared.entries()) {
+      // Re-checked here: a tag claimed meanwhile keeps its owner and isn't in the new sheet.
+      const updated = await tx
         .update(tags)
         .set({ claimCodeHash: hashes[i] })
-        .where(and(eq(tags.id, t.tagId), eq(tags.status, "unclaimed")));
+        .where(and(eq(tags.id, t.tagId), eq(tags.status, "unclaimed")))
+        .returning({ id: tags.id });
+      if (updated.length === 1) issued.push(t);
     }
     await tx.insert(auditLog).values({
       actorUserId: adminId,
@@ -120,13 +131,13 @@ export async function reissueClaimCodes(db: Database, batchId: string, adminId: 
       targetId: batchId,
       metadata: { count: issued.length },
     });
-
-    return {
-      batchId,
-      label: batch.label,
-      tags: issued.map((t) => ({ ...t, claimCode: formatClaimCode(t.claimCode) })),
-    };
   });
+
+  return {
+    batchId,
+    label: batch.label,
+    tags: issued.map((t) => ({ ...t, claimCode: formatClaimCode(t.claimCode) })),
+  };
 }
 
 export async function listBatches(db: Database) {

@@ -21,6 +21,8 @@ export const TEST_KEY_REF = "test:ntag424-master-key";
 
 const keyCache = new Map<string, { key: Promise<Buffer>; expires: number }>();
 const KEY_CACHE_MS = 10 * 60 * 1000;
+/** A failed fetch is remembered briefly, so a vault outage can't be turned into a flood of vault calls. */
+const FAILURE_CACHE_MS = 30 * 1000;
 
 /**
  * Default loader: OpenBao, cached in memory for 10 minutes per version so a tap doesn't wait on the vault.
@@ -39,7 +41,7 @@ export const loadMasterKey: MasterKeyLoader = async (keyRef) => {
   if (cached && cached.expires > Date.now()) return cached.key;
   const key = readMasterKey({ path: ref.path, version: ref.version }).then((k) => k.key);
   keyCache.set(keyRef, { key, expires: Date.now() + KEY_CACHE_MS });
-  key.catch(() => keyCache.delete(keyRef));
+  key.catch(() => keyCache.set(keyRef, { key, expires: Date.now() + FAILURE_CACHE_MS }));
   return key;
 };
 
