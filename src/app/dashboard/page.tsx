@@ -76,6 +76,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   </span>
                 </div>
                 <div className="row">
+                  {t.profileType && t.disabledReason !== "replaced" && (
+                    <Link className="button small" href={`/dashboard/tags/${t.id}`}>
+                      Edit profile
+                    </Link>
+                  )}
                   {t.status !== "disabled" && (
                     <Link className="button secondary small" href={`/q/${t.publicCode}`}>
                       View page
