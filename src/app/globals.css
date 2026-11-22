@@ -216,3 +216,156 @@ ul.plain li {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+
+select {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+legend {
+  font-size: 0.92rem;
+  font-weight: 500;
+  padding: 0 4px;
+}
+
+label.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-weight: 400;
+}
+
+label.check input {
+  margin-top: 4px;
+}
+
+main.full {
+  max-width: 1100px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.mono {
+  font-family: ui-monospace, monospace;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.badge.active {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.badge.disabled {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+button.small,
+.button.small {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+form.inline {
+  display: inline;
+}
+
+/* Printable label sheet: one label per tag (QR code, short code, claim code). */
+.labels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.label {
+  background: #fff;
+  color: #000;
+  border: 1px dashed #999;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  break-inside: avoid;
+}
+
+.label svg {
+  width: 140px;
+  height: 140px;
+  display: block;
+  margin: 0 auto 6px;
+}
+
+.label .code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.label .claim {
+  font-family: ui-monospace, monospace;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.label .small {
+  font-size: 0.7rem;
+  color: #555;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+  main,
+  main.full {
+    max-width: none;
+    padding: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .labels {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6mm;
+    margin: 0;
+  }
+}
