@@ -81,7 +81,7 @@ describe.skipIf(!db)("NFC tap verification", () => {
 
   async function tap(id: string, params: { picc?: unknown; cmac?: unknown }) {
     const found = (await findTagById(d, id))!;
-    return checkTap(d, found.tag, found.profile?.id ?? null, params, loader);
+    return checkTap(d, found.tag, params, loader);
   }
 
   it("treats a visit without parameters as a plain link", async () => {
@@ -95,7 +95,7 @@ describe.skipIf(!db)("NFC tap verification", () => {
     });
   });
 
-  it("verifies a genuine tap, records the scan, and rejects replays", async () => {
+  it("verifies a genuine tap and rejects replays", async () => {
     await encodeTag();
     expect(await tap(tagId, { picc: tap2.picc, cmac: tap2.cmac })).toEqual({ kind: "verified", counter: 2 });
     expect(await tap(tagId, { picc: tap2.picc, cmac: tap2.cmac })).toEqual({
@@ -107,9 +107,6 @@ describe.skipIf(!db)("NFC tap verification", () => {
 
     const [tag] = await d.select().from(schema.tags).where(eq(schema.tags.id, tagId));
     expect(tag.lastCounter).toBe(3);
-    const scans = await d.select().from(schema.scanEvents);
-    expect(scans).toHaveLength(2);
-    expect(scans.every((s) => s.source === "nfc" && s.profileId !== null)).toBe(true);
   });
 
   it("rejects a genuine tap pasted onto another tag's URL", async () => {
@@ -138,11 +135,10 @@ describe.skipIf(!db)("NFC tap verification", () => {
     const failing = async () => {
       throw new Error("vault down");
     };
-    expect(await checkTap(d, found.tag, null, { picc: tap2.picc, cmac: tap2.cmac }, failing)).toEqual({
+    expect(await checkTap(d, found.tag, { picc: tap2.picc, cmac: tap2.cmac }, failing)).toEqual({
       kind: "unverified",
       reason: "key_unavailable",
     });
-    expect(await d.select().from(schema.scanEvents)).toHaveLength(0);
   });
 
   it("imports encoder results safely", async () => {

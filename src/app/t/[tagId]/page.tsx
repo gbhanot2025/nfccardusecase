@@ -5,6 +5,7 @@ import { ClaimForm } from "@/components/ClaimForm";
 import { TagStatusView } from "@/components/TagStatusView";
 import { getSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { recordScanAfterResponse } from "@/server/scan-after";
 import { checkTap } from "@/server/taps";
 import { findTagById, listOwnedTags, movableProfiles } from "@/server/tags";
 import { claimAction } from "./actions";
@@ -27,10 +28,13 @@ export default async function TagPage({ params, searchParams }: PageProps<"/t/[t
   if (!found) notFound();
   const { tag, profile } = found;
   const query = await searchParams;
-  const tap = await checkTap(db, tag, profile?.id ?? null, { picc: query.picc, cmac: query.cmac });
+  const tap = await checkTap(db, tag, { picc: query.picc, cmac: query.cmac });
   if (tap.kind === "unverified") console.warn(`Unverified tap on a tag: ${tap.reason}`);
   const session = await getSession();
   const isOwner = Boolean(session && tag.ownerId === session.user.id);
+
+  // Only genuine taps by someone other than the owner count as scans (copied links are not counted).
+  if (tap.kind === "verified" && tag.status === "active" && !isOwner) await recordScanAfterResponse(tag.id, "nfc");
 
   if (tag.status !== "unclaimed") {
     return (

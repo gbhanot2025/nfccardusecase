@@ -30,3 +30,19 @@ describe("finder message email", () => {
     expect(mail.text).not.toContain("openstreetmap");
   });
 });
+
+describe("scan alert email", () => {
+  it("says how and when, without visitor details", async () => {
+    const { scanAlertEmail } = await import("@/lib/email");
+    const mail = scanAlertEmail({
+      to: "o@example.com",
+      itemLabel: "pet",
+      source: "qr",
+      device: "Android · Chrome",
+      at: new Date("2026-11-22T15:04:05Z"),
+      dashboardUrl: "http://x/dashboard",
+    });
+    expect(mail.subject).toBe("Your pet's tag was just scanned");
+    expect(mail.text).toContain("scanned (QR code) at 2026-11-22 15:04 UTC, using Android · Chrome");
+  });
+});

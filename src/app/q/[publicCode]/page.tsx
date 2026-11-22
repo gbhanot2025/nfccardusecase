@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { TagStatusView } from "@/components/TagStatusView";
 import { getSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { recordScanAfterResponse } from "@/server/scan-after";
 import { findTagByPublicCode } from "@/server/tags";
 
 export const metadata: Metadata = { title: "Tag" };
@@ -32,6 +33,7 @@ export default async function QrPage({ params }: PageProps<"/q/[publicCode]">) {
 
   const session = await getSession();
   const isOwner = Boolean(session && tag.ownerId === session.user.id);
+  if (tag.status === "active" && !isOwner) await recordScanAfterResponse(tag.id, "qr");
   return (
     <TagStatusView status={tag.status} profile={profile} publicCode={tag.publicCode} tagId={tag.id} isOwner={isOwner} />
   );
