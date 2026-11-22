@@ -1,0 +1,15 @@
+# HTTPS with automatic certificates. APP_DOMAIN comes from .env.production (e.g. tags.example.com).
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	# Caddy sets X-Forwarded-For to the real client address and ignores what the client sent
+	# (no trusted_proxies configured), which src/server/request.ts relies on.
+	reverse_proxy app:3000
+	log {
+		output stdout
+		format json
+	}
+}

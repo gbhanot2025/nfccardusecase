@@ -114,3 +114,21 @@ jobs:
 
       - name: Unit tests (NIST / NXP vectors, simulated tag)
         run: pytest
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the production and migrator images
+        run: |
+          docker build --target runner -t tagplatform-app:ci .
+          docker build --target migrator -t tagplatform-migrator:ci .
+
+      - name: Production compose file is valid
+        run: |
+          cp .env.production.example .env.production
+          sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=ci/' .env.production
+          docker compose -f docker-compose.prod.yml --env-file .env.production config --quiet

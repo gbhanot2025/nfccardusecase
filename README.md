@@ -66,6 +66,11 @@ tag, and only accepts a counter higher than the last one seen. Verified taps sho
 as scans; copied or replayed links still show the public page but are not counted. Claiming never depends on it (the
 claim code is the secret).
 
+## Production
+
+`docker-compose.prod.yml` (Caddy HTTPS, app, Postgres, OpenBao, SeaweedFS, nightly backups) and the step-by-step
+[runbook](docs/runbook.md): first-time setup, deploys, OpenBao unseal, backups/restore, monitoring, incidents.
+
 ## Tests
 
 | Command            | What it covers                                                                                                               |

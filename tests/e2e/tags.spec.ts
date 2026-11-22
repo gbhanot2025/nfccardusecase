@@ -361,7 +361,8 @@ test("finder messages the owner with their location; the owner gets an email and
   await finder.getByRole("button", { name: "Share my location" }).click();
   await expect(finder.getByText(/Location added/)).toBeVisible();
   await finder.getByRole("button", { name: "Send message" }).click();
-  await expect(finder.getByText("Your message was sent to the owner.")).toBeVisible();
+  // The browser solves the bot check first (well under a second on a phone).
+  await expect(finder.getByText("Your message was sent to the owner.")).toBeVisible({ timeout: 15_000 });
 
   const link = await latestLinkTo(ownerEmail, /found your pet/i);
   expect(link).toContain("openstreetmap.org/?mlat=51.50073&mlon=-0.12463");
@@ -398,6 +399,12 @@ test("scans of a lost item alert the owner and show in the history; the owner's 
   await expect(owner.getByText(/Scan alerts by email are/)).toContainText("on");
   await owner.getByRole("button", { name: "Turn scan alerts off" }).click();
   await expect(owner.getByRole("button", { name: "Turn scan alerts on" })).toBeVisible();
+});
+
+test("health check reports the database is reachable", async ({ request }) => {
+  const res = await request.get("/api/health");
+  expect(res.status()).toBe(200);
+  expect(await res.json()).toEqual({ ok: true });
 });
 
 test("unknown tags and codes are a plain 404", async ({ page }) => {
